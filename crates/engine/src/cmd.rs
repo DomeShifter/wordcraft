@@ -4,6 +4,7 @@ pub mod accessibility;
 pub mod canvas;
 pub mod caret;
 pub mod chart;
+pub mod checklist;
 pub mod citations;
 pub mod column;
 pub mod connectors;
@@ -71,6 +72,7 @@ pub fn registry() -> Registry {
     v.extend(phonetic::specs());
     v.extend(para::specs());
     v.extend(lists::specs());
+    v.extend(checklist::specs());
     v.extend(inspector::specs());
     v.extend(view::specs());
     v.extend(outline::specs());

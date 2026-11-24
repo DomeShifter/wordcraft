@@ -193,7 +193,7 @@ fn placeholder_props(s: &mut Session, base: &CharProps) -> CharProps {
 }
 
 /// `base` without the placeholder style (for real content), whatever its localized id.
-fn content_props(doc: &wordcraft_doc::Document, base: &CharProps) -> CharProps {
+pub(crate) fn content_props(doc: &wordcraft_doc::Document, base: &CharProps) -> CharProps {
     let mut p = base.clone();
     if p.style.as_deref().is_some_and(|id| id == PLACEHOLDER_STYLE || id == placeholder_style_id(doc)) {
         p.style = None;
@@ -202,7 +202,7 @@ fn content_props(doc: &wordcraft_doc::Document, base: &CharProps) -> CharProps {
 }
 
 /// An id no control in the document has.
-fn new_id(s: &Session) -> i64 {
+pub(crate) fn new_id(s: &Session) -> i64 {
     let mut used = std::collections::BTreeSet::new();
     let mut add = |bl: &wordcraft_doc::Blocks| {
         wordcraft_doc::control::walk_controls(bl, &mut |c| {
@@ -676,6 +676,12 @@ fn toggle_check_box(s: &mut Session, v: &Value) -> CmdResult {
             *checked = now;
         }
         c.showing_placeholder = false;
+    }
+    // A checklist item's text is struck through while it is ticked (StarDocs 0006).
+    if let Some(item) = super::checklist::item_box(&s.doc, r.start.story, &r.start.path)
+        && item.start == r.start
+    {
+        super::checklist::strike_item(s, &item, now)?;
     }
     Ok(json!({"checked": now}))
 }

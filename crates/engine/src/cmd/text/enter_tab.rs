@@ -62,6 +62,11 @@ pub(super) fn new_paragraph(s: &mut Session, _: &Value) -> CmdResult {
     if crate::cmd::controls::refuses_paragraph(s) {
         return sel_result(s);
     }
+    // In a checklist item: the next item, or the list's end (StarDocs 0006).
+    if let Some(r) = crate::cmd::checklist::enter(s, |s| enter(s, true)) {
+        r?;
+        return sel_result(s);
+    }
     enter(s, true)?;
     sel_result(s)
 }
