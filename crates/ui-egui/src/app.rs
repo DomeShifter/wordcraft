@@ -151,6 +151,7 @@ impl WordApp {
             windows: windows::Windows::new(shown_document),
             print_document: None,
             host_chrome: super::HostChrome::default(),
+            host_picture_menu: None,
             canvas,
             controls,
             dialog,
@@ -195,6 +196,14 @@ impl WordApp {
     pub fn with_chrome(mut self, chrome: super::HostChrome) -> Self {
         self.host_chrome = chrome;
         self
+    }
+
+    /// A host that offers its own picture commands (its menus, its wording) draws them into the
+    /// page's right-click menu for a selected picture, in place of WordCraft's picture items
+    /// (Change Picture, Reset, Size and Crop, Crop, Wrap Text, View Alt Text). `None` puts
+    /// WordCraft's back.
+    pub fn set_picture_menu(&mut self, menu: Option<super::PictureMenu>) {
+        self.host_picture_menu = menu;
     }
 
     pub fn with_control(mut self, rx: std::sync::mpsc::Receiver<ControlRequest>) -> Self {

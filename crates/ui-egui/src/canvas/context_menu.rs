@@ -136,26 +136,35 @@ pub(super) fn context_menu(app: &mut WordApp, ui: &mut Ui) {
         item(ui, app, tl!("Remove Table of Contents"), "references.removeToc", json!({}));
     }
     let selected_object = wordcraft_engine::cmd::objects::selected(&app.session).is_some();
-    if selected_object || app.session.sel.focus.path.cell().is_some() {
-        item(ui, app, "View Alt Text…", "view.altTextPane", json!({"value": true}));
-    }
     // A selected picture, shape, text box or chart: its own items, then Wrap Text (#513).
     let picture = crate::ribbon::has_picture_selected(&app.session);
     let object = wordcraft_engine::cmd::objects::object_selection(&app.session).is_some();
+    // A host with its own picture commands draws them instead (StarDocs 0007).
+    let host_menu = app.host_picture_menu.filter(|_| picture);
+    if (selected_object || app.session.sel.focus.path.cell().is_some()) && host_menu.is_none() {
+        item(ui, app, "View Alt Text…", "view.altTextPane", json!({"value": true}));
+    }
     if picture || object {
         ui.separator();
     }
-    if picture {
+    if let Some(menu) = host_menu {
+        menu(app, ui);
+    } else if picture {
         item(ui, app, "Change Picture…", "ui.changePicture", json!({}));
         item(ui, app, "Reset Picture", "picture.reset", json!({}));
-        item(ui, app, "Size and Crop…", "ui.tab", json!({"tab": "Picture Format"}));
+        // Without the ribbon there is no Picture Format tab to show: the Layout dialog's Size tab.
+        if app.host_chrome.ribbon {
+            item(ui, app, "Size and Crop…", "ui.tab", json!({"tab": "Picture Format"}));
+        } else {
+            item(ui, app, "Size and Crop…", "picture.size", json!({}));
+        }
         item(ui, app, "Crop", "ui.crop", json!({}));
     }
     if picture || object {
         // A numbered caption under (or over) the picture, shape, text box or chart (#1230).
         item(ui, app, "Insert Caption…", "references.caption", json!({}));
     }
-    if object {
+    if object && host_menu.is_none() {
         ui.menu_button(tl!("Wrap Text"), |ui| crate::ribbon::wrap_text_items(ui, app));
     }
     if crate::widgets::enabled(app, "shape.fill") {

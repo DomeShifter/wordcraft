@@ -803,7 +803,13 @@ pub struct WordApp {
     print_document: Option<u64>,
     /// Which parts of WordCraft's own window are drawn (see [`HostChrome`]).
     pub(crate) host_chrome: HostChrome,
+    /// A host's own items for a selected picture in the page's right-click menu
+    /// ([`WordApp::set_picture_menu`], StarDocs 0007).
+    pub(crate) host_picture_menu: Option<PictureMenu>,
 }
+
+/// Draws a host's items for a selected picture into the page's right-click menu.
+pub type PictureMenu = fn(&mut WordApp, &mut egui::Ui);
 
 /// The parts of WordCraft's window a host can switch off when it draws its own menus, toolbar
 /// and status line around the page. Every command stays reachable through the session, so a
