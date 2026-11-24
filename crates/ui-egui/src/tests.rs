@@ -8159,3 +8159,18 @@ fn recent_list_edits_work_without_a_document() {
     assert_eq!(a.run("ui.recentRemove", json!({"path": "/tmp/alpha.docx"})).unwrap()["removed"], 1);
     assert_eq!(a.run("ui.recentClear", json!({})).unwrap()["removed"], 0);
 }
+
+/// StarDocs: a host that draws its own menus turns the ribbon off; the page and its commands stay.
+#[test]
+fn a_host_can_hide_the_ribbon_title_bar_and_status_bar() {
+    use egui_kittest::kittest::Queryable;
+    let mut a = app().with_chrome(crate::HostChrome { title_bar: false, ribbon: false, status_bar: false });
+    a.run("text.insert", json!({"text": "Hello"})).unwrap();
+    let mut h = harness(a);
+    h.run_steps(4);
+    assert!(h.query_by_label("Insert").is_none(), "no ribbon tabs");
+    assert!(h.query_by_label("Search commands and help").is_none(), "no title bar");
+    assert!(h.query_by_label("Focus").is_none(), "no status bar");
+    h.state_mut().run("select.all", json!({})).unwrap();
+    assert!(h.state_mut().run("format.bold", json!({})).is_ok(), "commands still run without the ribbon");
+}

@@ -801,6 +801,27 @@ pub struct WordApp {
     pub(crate) windows: windows::Windows,
     /// The document the last print job was for: its window reports how the job went.
     print_document: Option<u64>,
+    /// Which parts of WordCraft's own window are drawn (see [`HostChrome`]).
+    pub(crate) host_chrome: HostChrome,
+}
+
+/// The parts of WordCraft's window a host can switch off when it draws its own menus, toolbar
+/// and status line around the page. Every command stays reachable through the session, so a
+/// host that hides the ribbon can still run anything it offered. All on by default.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HostChrome {
+    /// The title bar: AutoSave, Save, Undo/Redo, the file name, Search and Share.
+    pub title_bar: bool,
+    /// The ribbon: its tabs and commands.
+    pub ribbon: bool,
+    /// The status bar under the page: page and word counts, views and zoom.
+    pub status_bar: bool,
+}
+
+impl Default for HostChrome {
+    fn default() -> Self {
+        HostChrome { title_bar: true, ribbon: true, status_bar: true }
+    }
 }
 
 /// Every `.rs` file under `dir`, subdirectories included, in a fixed order: tests that scan the

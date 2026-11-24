@@ -749,6 +749,9 @@ fn alt_transition(app: &mut WordApp, pressed: bool, modifiers: egui::Modifiers) 
 /// uses. On macOS they never arm from Alt at all, because Option is how you type accented
 /// characters there and hijacking it would swallow the next letter.
 pub fn logic(app: &mut WordApp, ctx: &egui::Context) {
+    if !app.host_chrome.ribbon {
+        return;
+    }
     if suppressed(app, ctx) || !ctx.input(|i| i.focused) {
         app.ui.keytips = Phase::Off;
         app.ui.keytip_prefix.clear();
@@ -852,6 +855,9 @@ pub fn logic(app: &mut WordApp, ctx: &egui::Context) {
 /// Paint the badges for the current phase over the ribbon. Called after the ribbon is laid out,
 /// so every badge sits exactly on its own control and can never overlap another one.
 pub fn show(app: &mut WordApp, ctx: &egui::Context, ui: &mut Ui) {
+    if !app.host_chrome.ribbon {
+        return;
+    }
     if app.ui.keytips == Phase::Off || suppressed(app, ctx) {
         return;
     }

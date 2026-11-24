@@ -150,6 +150,7 @@ impl WordApp {
             parked: Default::default(),
             windows: windows::Windows::new(shown_document),
             print_document: None,
+            host_chrome: super::HostChrome::default(),
             canvas,
             controls,
             dialog,
@@ -187,6 +188,13 @@ impl WordApp {
             #[cfg(not(target_arch = "wasm32"))]
             file_browser,
         }
+    }
+
+    /// The app with the given parts of its own window shown; a host that draws its own menus,
+    /// toolbar or status line turns the matching parts off.
+    pub fn with_chrome(mut self, chrome: super::HostChrome) -> Self {
+        self.host_chrome = chrome;
+        self
     }
 
     pub fn with_control(mut self, rx: std::sync::mpsc::Receiver<ControlRequest>) -> Self {
