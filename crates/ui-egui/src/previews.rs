@@ -598,7 +598,11 @@ const STYLE_TILES_COMPACT: usize = 3;
 /// The Home tab's Styles gallery.
 pub fn style_gallery(app: &mut WordApp, ui: &mut Ui, state: &Value) {
     let t = Tokens::get(ui.ctx());
-    let current = state.get("style").and_then(Value::as_str).unwrap_or("Normal").to_string();
+    // No tile is current when the selection mixes styles (`style` is null).
+    let current = match state.get("style") {
+        Some(Value::Null) => String::new(),
+        v => v.and_then(Value::as_str).unwrap_or("Normal").to_string(),
+    };
     let styles: Vec<(String, String)> = app.session.doc.styles.gallery().iter().map(|s| (s.id.clone(), crate::i18n::style_name(s))).collect();
     let rev = app.session.rev();
     let skey = app.previews.styles_key(&app.session.doc, rev);

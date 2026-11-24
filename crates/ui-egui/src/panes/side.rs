@@ -45,7 +45,9 @@ pub(super) fn clipboard(app: &mut WordApp, ui: &mut Ui) {
 
 pub(super) fn styles(app: &mut WordApp, ui: &mut Ui) {
     let st = app.session.run("format.state", &json!({})).unwrap_or_default();
-    let cur = st.get("style").and_then(Value::as_str).unwrap_or("Normal").to_string();
+    // A selection that mixes styles (`style` is null) has no current style to name or tick.
+    let mixed = st.get("style").is_some_and(Value::is_null);
+    let cur = if mixed { String::new() } else { st.get("style").and_then(Value::as_str).unwrap_or("Normal").to_string() };
     let current_name = app
         .session
         .doc
@@ -53,7 +55,9 @@ pub(super) fn styles(app: &mut WordApp, ui: &mut Ui) {
         .get(&cur)
         .map(crate::i18n::style_name)
         .unwrap_or_else(|| st.get("styleName").and_then(Value::as_str).unwrap_or("").to_string());
-    ui.label(egui::RichText::new(crate::i18n::fmt(tl!("Current style: {style}"), &[("style", &current_name)])).small());
+    if !mixed {
+        ui.label(egui::RichText::new(crate::i18n::fmt(tl!("Current style: {style}"), &[("style", &current_name)])).small());
+    }
     // Wrapped: the host gives the pane a fixed width, and the row is wider than its default.
     ui.horizontal_wrapped(|ui| {
         if ui.button(tl!("New Style…")).clicked() {

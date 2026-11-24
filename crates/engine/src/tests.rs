@@ -4887,6 +4887,33 @@ fn inspect_reports_structure() {
     assert_eq!(f["styleName"], "Title");
 }
 
+/// StarDocs 0004: a selection over paragraphs of different styles has no one style (null, like
+/// the other mixed values); one style throughout, or a selection that only reaches the start of
+/// the next paragraph, still names it.
+#[test]
+fn format_state_style_is_null_for_mixed_paragraph_styles() {
+    let mut s = s();
+    run(&mut s, "text.insert", json!({"text": "Heading"}));
+    run(&mut s, "para.style", json!({"style": "Heading1"}));
+    run(&mut s, "text.newParagraph", json!({}));
+    run(&mut s, "text.insert", json!({"text": "Body"}));
+    run(&mut s, "para.style", json!({"style": "Normal"}));
+    let select = |s: &mut Session, a: Pos, b: Pos| s.sel = crate::Selection { anchor: a, focus: b };
+    select(&mut s, Pos::body(0, 2), Pos::body(1, 2));
+    let f = run(&mut s, "format.state", json!({}));
+    assert!(f["style"].is_null() && f["styleName"].is_null(), "mixed: {f}");
+    select(&mut s, Pos::body(1, 2), Pos::body(0, 2));
+    assert!(run(&mut s, "format.state", json!({}))["style"].is_null(), "backwards too");
+    select(&mut s, Pos::body(0, 0), Pos::body(1, 0));
+    assert_eq!(run(&mut s, "format.state", json!({}))["style"], "Heading1", "the next paragraph's start isn't part of it");
+    select(&mut s, Pos::body(0, 1), Pos::body(0, 4));
+    assert_eq!(run(&mut s, "format.state", json!({}))["style"], "Heading1");
+    run(&mut s, "caret.set", json!({"pos": {"block": 0, "off": 0}}));
+    run(&mut s, "para.style", json!({"style": "Normal"}));
+    select(&mut s, Pos::body(0, 2), Pos::body(1, 2));
+    assert_eq!(run(&mut s, "format.state", json!({}))["style"], "Normal", "one style throughout");
+}
+
 #[test]
 fn caret_navigation() {
     let mut s = s();

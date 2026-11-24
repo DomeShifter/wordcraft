@@ -864,6 +864,23 @@ fn set(s: &mut Session, v: &Value) -> CmdResult {
     apply(s, &|c| c.overlay(&props))
 }
 
+/// Whether the selection covers paragraphs of more than one style. A selection that ends at the
+/// very start of a paragraph doesn't count that paragraph (nothing of it is selected).
+fn mixed_styles(s: &Session) -> bool {
+    let (a, b) = s.sel.ordered();
+    if a.story != b.story || a.path == b.path {
+        return false;
+    }
+    let mut paths = s.doc.paths_between(&a, &b);
+    if b.off == 0 && paths.len() > 1 && paths.last() == Some(&b.path) {
+        paths.pop();
+    }
+    let style = |path: &wordcraft_doc::Path| s.doc.para(a.story, path).map(|p| p.props.style.as_deref().unwrap_or("Normal").to_string());
+    let mut styles = paths.iter().filter_map(style);
+    let Some(first) = styles.next() else { return false };
+    styles.any(|st| st != first)
+}
+
 /// What the ribbon shows: the formatting at the selection (mixed values are null).
 pub fn state(s: &Session) -> Value {
     let all = resolved(s);
@@ -874,9 +891,14 @@ pub fn state(s: &Session) -> Value {
         if all.iter().all(|r| f(r) == v0) { v0 } else { Value::Null }
     };
     // A selected text box shows its own (first) paragraph's style, like its text's formatting.
-    let at = selected_text_box(s).map_or_else(|| s.sel.focus.clone(), |(a, _)| a);
+    // A selection names the style of its first paragraph (the one paragraph it all has, unless
+    // `mixed_styles`), not of where it ends: that may be the start of the next one.
+    let at = selected_text_box(s).map_or_else(|| s.sel.ordered().0, |(a, _)| a);
     let style = s.doc.para_at(&at).and_then(|p| p.props.style.clone()).unwrap_or_else(|| "Normal".into());
     let style_name = s.doc.styles.get(&style).map(|st| st.name.clone()).unwrap_or(style.clone());
+    // Paragraphs of different styles selected: no one style is current (null, like the other
+    // mixed values), so a style box shows none rather than the focus paragraph's.
+    let (style, style_name) = if selected_text_box(s).is_none() && mixed_styles(s) { (Value::Null, Value::Null) } else { (json!(style), json!(style_name)) };
     let font = same(&|r| json!(r.font));
     // The font's substitute when it isn't installed: the face its text is drawn in, apart from
     // characters the substitute lacks. `font.missing` lists every face the shown text is drawn
