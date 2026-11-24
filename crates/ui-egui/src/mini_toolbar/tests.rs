@@ -27,6 +27,20 @@ fn reading_mode_hides_formatting_even_with_an_existing_selection() {
     assert!(visible(&app), "returning to editing restores the formatting bar");
 }
 
+/// StarDocs 0003: the bar never floats over the Comments pane; it comes back when the pane closes.
+#[test]
+fn the_comments_pane_puts_the_bar_away() {
+    let mut h = bar_over("brown fox");
+    assert!(bar_layer(&h).is_some(), "the bar is shown over a selection");
+    h.state_mut().run("view.commentsPane", json!({"value": true})).unwrap();
+    steps(&mut h);
+    assert!(!visible(h.state()), "no bar while the Comments pane is open");
+    assert!(bar_layer(&h).is_none(), "the bar was put away");
+    h.state_mut().run("view.commentsPane", json!({"value": false})).unwrap();
+    steps(&mut h);
+    assert!(bar_layer(&h).is_some(), "the bar is back once the pane closes");
+}
+
 #[test]
 fn sits_above_the_selection_when_there_is_room() {
     let left = vp().center().x;

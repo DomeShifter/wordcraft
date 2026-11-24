@@ -112,6 +112,11 @@ pub fn visible(app: &WordApp) -> bool {
     if app.dialog.is_some() || app.colors.is_some() || app.ui.backstage {
         return false;
     }
+    // Nor while the Comments pane is open: the bar would float over the pane and its comment
+    // fields, and the keyboard is usually in one of them.
+    if app.session.view.comments_pane {
+        return false;
+    }
     // Never while the right-click context menu is open: it owns the pointer and would double up.
     if app.canvas.context_menu_open {
         return false;
