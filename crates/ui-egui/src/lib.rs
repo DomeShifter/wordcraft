@@ -46,6 +46,7 @@ pub mod file_dialogs;
 pub mod format_shape;
 pub mod frame;
 pub mod guides;
+pub mod host_look;
 pub mod i18n;
 pub mod ibeam;
 pub mod icons;
@@ -104,6 +105,7 @@ pub use dialogs::dialogs_smart_art;
 pub use dialogs::dialogs_table_style;
 pub use dialogs::dialogs_templates;
 pub use file_dialogs::{FileDialogAnswer, FileDialogRequest, open_filters};
+pub use host_look::{ButtonLook, CommentsLook, DialogLook, HostLook};
 
 mod app;
 mod clock;
@@ -806,6 +808,9 @@ pub struct WordApp {
     /// A host's own items for a selected picture in the page's right-click menu
     /// ([`WordApp::set_picture_menu`], StarDocs 0007).
     pub(crate) host_picture_menu: Option<PictureMenu>,
+    /// A host's look for the dialogs and the Comments pane ([`WordApp::set_host_look`],
+    /// StarDocs 0008).
+    pub(crate) host_look: HostLook,
 }
 
 /// Draws a host's items for a selected picture into the page's right-click menu.

@@ -152,6 +152,7 @@ impl WordApp {
             print_document: None,
             host_chrome: super::HostChrome::default(),
             host_picture_menu: None,
+            host_look: super::HostLook::default(),
             canvas,
             controls,
             dialog,
@@ -204,6 +205,13 @@ impl WordApp {
     /// WordCraft's back.
     pub fn set_picture_menu(&mut self, menu: Option<super::PictureMenu>) {
         self.host_picture_menu = menu;
+    }
+
+    /// A host that draws its own interface in another style gives WordCraft's dialogs and
+    /// Comments pane its frame, fonts and buttons (see [`super::HostLook`]). The default puts
+    /// WordCraft's own look back.
+    pub fn set_host_look(&mut self, look: super::HostLook) {
+        self.host_look = look;
     }
 
     pub fn with_control(mut self, rx: std::sync::mpsc::Receiver<ControlRequest>) -> Self {

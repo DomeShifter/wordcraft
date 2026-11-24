@@ -4,8 +4,12 @@ use super::{Color32, CornerRadius, Rect, Response, Sense, Stroke, Tokens, Ui, ic
 
 /// A dialog's primary button (OK, Save, Close): the accent fill with `on_accent` text, per theme.
 pub fn primary_button(ui: &Ui, text: impl Into<String>) -> egui::Button<'static> {
+    let text = text.into();
+    if let Some(pill) = crate::host_look::primary(ui, text.clone()) {
+        return pill;
+    }
     let t = Tokens::get(ui.ctx());
-    egui::Button::new(egui::RichText::new(text.into()).color(t.on_accent)).fill(t.accent)
+    egui::Button::new(egui::RichText::new(text).color(t.on_accent)).fill(t.accent)
 }
 
 /// A frameless 22 px icon button (pane close buttons): ribbon-style hover and press feedback.

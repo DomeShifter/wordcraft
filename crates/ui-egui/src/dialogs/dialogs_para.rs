@@ -10,7 +10,7 @@ use wordcraft_doc::props::{Border, BorderStyle, Borders, Rgb, TabAlign, TabLeade
 use crate::WordApp;
 use crate::dialogs::{buttons, color_menu};
 use crate::options::MeasureExt;
-use crate::theme::{Tokens, semibold};
+use crate::theme::Tokens;
 
 /// Stops closer than this (points) are the same stop.
 /// A leader choice: the value, its menu label (translated), and the fill the closed box shows.
@@ -582,7 +582,7 @@ pub fn borders(app: &mut WordApp, ui: &mut Ui, f: &mut BordersForm) -> bool {
             });
         }
         _ => {
-            ui.label(egui::RichText::new(tl!("Fill")).font(semibold(12.5)));
+            ui.label(egui::RichText::new(tl!("Fill")).font(crate::host_look::dialog_heading(ui)));
             color_menu(ui, &theme, &mut f.fill);
             ui.add_space(6.0);
             let fill = Rgb::parse(&f.fill);
@@ -621,7 +621,7 @@ fn lines(ui: &mut Ui, id: &str, l: &mut LineForm, theme: &[Rgb], fill: Option<Rg
     let between = target == Target::Paragraph;
     crate::rtl::horizontal_top(ui, |ui| {
         crate::rtl::vertical(ui, |ui| {
-            ui.label(egui::RichText::new(tl!("Setting:")).font(semibold(12.5)));
+            ui.label(egui::RichText::new(tl!("Setting:")).font(crate::host_look::dialog_heading(ui)));
             for (s, label) in
                 [(Setting::None, "None"), (Setting::Box, "Box"), (Setting::Shadow, "Shadow"), (Setting::ThreeD, "3-D"), (Setting::Custom, "Custom")]
             {
@@ -653,7 +653,7 @@ fn lines(ui: &mut Ui, id: &str, l: &mut LineForm, theme: &[Rgb], fill: Option<Rg
         });
         ui.add_space(8.0);
         crate::rtl::vertical(ui, |ui| {
-            ui.label(egui::RichText::new(tl!("Preview")).font(semibold(12.5)));
+            ui.label(egui::RichText::new(tl!("Preview")).font(crate::host_look::dialog_heading(ui)));
             if let Some(side) = preview(ui, l, fill, target) {
                 l.toggle(side);
             }

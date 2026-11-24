@@ -268,7 +268,7 @@ pub(super) fn field_ui(app: &mut WordApp, ui: &mut Ui, f: &mut FieldForm) -> boo
         // Left: category and field names.
         crate::rtl::vertical(ui, |ui| {
             ui.set_width(200.0);
-            ui.label(egui::RichText::new(tl!("Pick a field from the list")).font(semibold(12.5)));
+            ui.label(egui::RichText::new(tl!("Pick a field from the list")).font(crate::host_look::dialog_heading(ui)));
             ui.label(tl!("Categories:"));
             let shown = tl!(f.category.as_str()).to_string();
             craft_ui::ComboBox::from_id_salt("field_category").selected_text(shown).width(190.0).show_ui(ui, |ui| {
@@ -294,7 +294,7 @@ pub(super) fn field_ui(app: &mut WordApp, ui: &mut Ui, f: &mut FieldForm) -> boo
         ui.add_space(14.0);
         // Right: the field's options, or its code.
         crate::rtl::vertical(ui, |ui| {
-            ui.label(egui::RichText::new(tl!("Field properties")).font(semibold(12.5)));
+            ui.label(egui::RichText::new(tl!("Field properties")).font(crate::host_look::dialog_heading(ui)));
             if let Some((_, _, desc)) = FIELDS.iter().find(|(n, _, _)| *n == f.name) {
                 ui.label(egui::RichText::new(format!("{} {}", tl!("Description:"), tl!(desc))).small().color(t.text_dim));
             }

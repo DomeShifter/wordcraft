@@ -178,6 +178,11 @@ impl PaneContent<Pane> for Content<'_> {
     fn default_state(&self, pane: &Pane) -> PaneState {
         pane.default_state()
     }
+
+    /// Under a host look (StarDocs 0008) the Comments pane draws its own header.
+    fn title_bar(&self, pane: &Pane) -> bool {
+        !(*pane == Pane::Comments && self.app.host_look.comments.is_some())
+    }
 }
 
 #[cfg(test)]

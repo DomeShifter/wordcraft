@@ -213,6 +213,7 @@ impl WordApp {
             print_document: _,
             host_chrome: _,
             host_picture_menu: _,
+            host_look: _,
             // Per document: the shown document's, swapped with `parked` on a document switch.
             autosave_path: _,
             comment_drafts: _,

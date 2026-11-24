@@ -219,14 +219,33 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
         Dialog::Layout(d) => d.title(),
     };
     let id = egui::Id::unique(("dialog", title));
-    let window = crate::window_close::window(ctx, egui::Window::new(tl!(title)).id(id).collapsible(false).resizable(false));
+    let look = app.host_look.dialog.clone();
+    let window = egui::Window::new(tl!(title)).id(id).collapsible(false).resizable(false);
+    // A host look (StarDocs 0008) draws its own frame and title row; WordCraft's title bar and
+    // close box are not drawn.
+    let window = match &look {
+        Some(l) => window.title_bar(false).frame(l.frame),
+        None => crate::window_close::window(ctx, window),
+    };
     // A file browser or Colors dialog it opened is above it and takes the keys: Escape or Enter
     // there doesn't also cancel or OK this one.
     let held = (app.file_browser_open() || app.colors.is_some()).then(|| ctx.input_mut(|i| std::mem::take(&mut i.events)));
-    let shown = place_dialog(ctx, id, window).show(ctx, |ui| {
-        ui.set_min_width(340.0);
-        close = crate::rtl::root(ui, |ui| body(app, ui, &mut d));
+    if let Some(l) = &look {
+        ctx.data_mut(|data| data.insert_temp(crate::host_look::heading_key(), l.heading_font.clone()));
+    }
+    let shown = crate::host_look::with_buttons(ctx, look.as_ref().map(|l| &l.buttons), || {
+        place_dialog(ctx, id, window).show(ctx, |ui| {
+            ui.set_min_width(look.as_ref().map_or(340.0, |l| l.min_width));
+            if let Some(l) = &look {
+                crate::host_look::apply_body(ui, l);
+                close |= host_title_row(ui, l, tl!(title));
+            }
+            close |= crate::rtl::root(ui, |ui| body(app, ui, &mut d));
+        })
     });
+    if look.is_some() {
+        ctx.data_mut(|data| data.remove::<egui::FontId>(crate::host_look::heading_key()));
+    }
     if let Some(events) = held {
         ctx.input_mut(|i| i.events = events);
     }
@@ -247,7 +266,9 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
             });
         }
         count_dialog_frame(ctx, id);
-        close |= crate::window_close::show(ctx, &shown.response, &Tokens::get(ctx));
+        if look.is_none() {
+            close |= crate::window_close::show(ctx, &shown.response, &Tokens::get(ctx));
+        }
         // A file browser it opened (Attach…, Browse…) stays above it.
         if d.is_modal() && !close && !app.file_browser_open() {
             block_behind(app, ctx, &shown.response);
@@ -264,6 +285,21 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
     }
 }
 
+/// A host-styled dialog's title row: the title at the start, a round ✕ at the end. True when
+/// the ✕ was clicked.
+fn host_title_row(ui: &mut Ui, look: &crate::host_look::DialogLook, title: &str) -> bool {
+    let mut close = false;
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(title).font(look.title_font.clone()).color(look.title_color));
+        ui.with_layout(crate::rtl::far_side(ui, egui::Align::Center), |ui| {
+            let hover = look.close_color.gamma_multiply(0.12);
+            close = crate::host_look::round_icon(ui, "close", tl!("Close"), 32.0, look.close_color, hover).clicked();
+        });
+    });
+    ui.add_space(look.item_spacing.y);
+    close
+}
+
 /// Cancel key for dialogs: Escape everywhere, plus ⌘. (Command+Period) on macOS.
 pub(crate) fn cancel_key_pressed(ui: &Ui) -> bool {
     ui.input(|i| i.key_pressed(egui::Key::Escape) || (cfg!(target_os = "macos") && i.modifiers.command && i.key_pressed(egui::Key::Period)))
@@ -271,13 +307,14 @@ pub(crate) fn cancel_key_pressed(ui: &Ui) -> bool {
 
 /// Lays out an OK and a Cancel button right-to-left, in the platform's order:
 /// macOS puts Cancel left of the default OK button; Windows and Linux put OK left of Cancel.
+/// A host look (StarDocs 0008) takes the macOS order too, as Google Docs does.
 /// Returns `(ok, cancel)` responses. Call inside a right-to-left layout.
 pub(crate) fn ok_cancel_responses(ui: &mut Ui, draw_ok: impl FnOnce(&mut Ui) -> egui::Response, cancel: &str) -> (egui::Response, egui::Response) {
-    if cfg!(target_os = "macos") {
+    if cfg!(target_os = "macos") || crate::host_look::buttons(ui.ctx()).is_some() {
         let okb = draw_ok(ui);
-        (okb, ui.button(cancel))
+        (okb, crate::host_look::text_button(ui, cancel))
     } else {
-        let cancelb = ui.button(cancel);
+        let cancelb = crate::host_look::text_button(ui, cancel);
         (draw_ok(ui), cancelb)
     }
 }

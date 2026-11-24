@@ -1,8 +1,13 @@
+mod host;
+
 use super::{BTreeMap, StoryRef, Stroke, Tokens, Ui, Value, WordApp, json, regular, semibold};
 
 /// Draws the Comments pane: New Comment and scrollable comment and reply cards with edit, go-to,
 /// reply, resolve or reopen, and delete actions.
 pub(super) fn comments(app: &mut WordApp, ui: &mut Ui) {
+    if let Some(look) = app.host_look.comments.clone() {
+        return host::comments(app, ui, &look);
+    }
     if crate::widgets::icon_text_button(ui, "newComment", tl!("New Comment"), regular(12.5)).clicked() {
         let _ = app.run("review.newComment", json!({"text": ""}));
     }
@@ -285,6 +290,12 @@ fn thread_root(app: &WordApp, id: u32) -> u32 {
 /// `review.reply`; returns true when the field is done (posted or left empty). A refused reply
 /// keeps the field open with its text.
 pub(crate) fn reply_editor(app: &mut WordApp, ui: &mut Ui, id: u32, font: Option<egui::FontId>, focus: bool) -> bool {
+    reply_field(app, ui, id, font, focus, true)
+}
+
+/// [`reply_editor`]; without `post_on_blur` the reply is posted only by the caller (a host
+/// look's Reply button), so clicking Cancel never posts it.
+fn reply_field(app: &mut WordApp, ui: &mut Ui, id: u32, font: Option<egui::FontId>, focus: bool, post_on_blur: bool) -> bool {
     let mut text = drafts(app).replies.get(&id).cloned().unwrap_or_default();
     let editable = crate::widgets::enabled(app, "review.reply");
     let field = field_id(app, ui, "comment_reply", id);
@@ -293,7 +304,7 @@ pub(crate) fn reply_editor(app: &mut WordApp, ui: &mut Ui, id: u32, font: Option
         .interactive(editable)
         .desired_rows(1)
         .desired_width(f32::INFINITY)
-        .hint_text(tl!("Write a reply"));
+        .hint_text(if post_on_blur { tl!("Write a reply") } else { tl!("Reply") });
     if let Some(f) = &font {
         edit = edit.font(f.clone());
     }
@@ -309,7 +320,7 @@ pub(crate) fn reply_editor(app: &mut WordApp, ui: &mut Ui, id: u32, font: Option
         drafts(app).replies.remove(&id);
         return true;
     }
-    r.lost_focus() && commit_reply(app, id).is_ok()
+    post_on_blur && r.lost_focus() && commit_reply(app, id).is_ok()
 }
 
 /// Post a pending reply draft to comment `id` (nothing when there is none or it is blank). The

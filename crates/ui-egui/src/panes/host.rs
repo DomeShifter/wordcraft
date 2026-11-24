@@ -58,7 +58,10 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         .policy(SidePolicy::Columns)
         .f6(false)
         .labels(labels())
-        .frame(egui::Frame::NONE.fill(t.panel).stroke(Stroke::new(1.0, t.border)))
+        .frame(match &app.host_look.comments {
+            Some(l) => egui::Frame::NONE.fill(l.panel_fill).stroke(l.panel_stroke),
+            None => egui::Frame::NONE.fill(t.panel).stroke(Stroke::new(1.0, t.border)),
+        })
         .body_margin(egui::Margin::same(10))
         .show(ui, &open, |pane| states.iter().find(|(p, _)| p == pane).map(|(_, state)| *state), &mut Content { app });
     for request in out.requests {

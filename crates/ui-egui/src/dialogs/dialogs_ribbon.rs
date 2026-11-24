@@ -12,7 +12,6 @@ use serde_json::{Value, json};
 use crate::WordApp;
 use crate::dialogs::Dialog;
 use crate::dialogs_keyboard::{categories, commands, list, matching_commands, select_in};
-use crate::theme::semibold;
 
 /// The dialog's two pages.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -107,7 +106,7 @@ pub fn customize_ribbon(app: &mut WordApp, ui: &mut Ui, f: &mut RibbonForm) -> b
     }
     crate::rtl::horizontal_top(ui, |ui| {
         crate::rtl::vertical(ui, |ui| {
-            ui.label(egui::RichText::new(tl!("Choose a command")).font(semibold(12.5)));
+            ui.label(egui::RichText::new(tl!("Choose a command")).font(crate::host_look::dialog_heading(ui)));
             crate::rtl::horizontal_top(ui, |ui| {
                 if let Some(c) = list(ui, "rb_categories", vec2(left, h), &cats, &f.category) {
                     f.category = c;
@@ -243,7 +242,7 @@ fn ribbon_page(app: &mut WordApp, ui: &mut Ui, f: &mut RibbonForm, h: f32) {
     });
     ui.add_space(4.0);
     crate::rtl::vertical(ui, |ui| {
-        ui.label(egui::RichText::new(tl!("Ribbon tabs")).font(semibold(12.5)));
+        ui.label(egui::RichText::new(tl!("Ribbon tabs")).font(crate::host_look::dialog_heading(ui)));
         crate::rtl::horizontal_top(ui, |ui| {
             tree(app, ui, f, &rows, h);
             crate::rtl::vertical(ui, |ui| {
@@ -365,7 +364,7 @@ fn qat_page(app: &mut WordApp, ui: &mut Ui, f: &mut RibbonForm, h: f32) {
     });
     ui.add_space(4.0);
     crate::rtl::vertical(ui, |ui| {
-        ui.label(egui::RichText::new(tl!("Quick Access Toolbar")).font(semibold(12.5)));
+        ui.label(egui::RichText::new(tl!("Quick Access Toolbar")).font(crate::host_look::dialog_heading(ui)));
         crate::rtl::horizontal_top(ui, |ui| {
             let rows: Vec<(String, String)> = ids.iter().map(|id| (id.clone(), label_of(app, id))).collect();
             if let Some(id) = list(ui, "rb_qat", vec2(250.0, h), &rows, &f.qat_selected) {
