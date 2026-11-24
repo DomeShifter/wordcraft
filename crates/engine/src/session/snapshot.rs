@@ -253,7 +253,9 @@ impl Session {
     /// Restrict Editing refuses outright. `None` when it can run (or doesn't exist).
     pub fn why_disabled(&self, id: &str) -> Option<&'static str> {
         let spec = self.registry.get(id)?;
-        (spec.enabled)(self).or_else(|| if spec.mutates { crate::cmd::protect::greyed_out(self, id, || self.protect_facts()) } else { None })
+        (spec.enabled)(self)
+            .or_else(|| crate::cmd::protect::viewing_refuses(self, id, &serde_json::Value::Null))
+            .or_else(|| if spec.mutates { crate::cmd::protect::greyed_out(self, id, || self.protect_facts()) } else { None })
     }
 
     /// Put the revision back to `rev` after a command that changed nothing or failed. What the

@@ -247,6 +247,20 @@ fn always_allowed(id: &str, params: &Value) -> bool {
     }
 }
 
+/// Why command `id` (one that changes the document) is refused while the session is only viewing
+/// the document (`view.viewing`, StarDocs 0005): everything but the File commands that leave the
+/// document as it is (Save, Open, New, Print, Export…).
+pub(crate) fn viewing_refuses(s: &Session, id: &str, params: &Value) -> Option<&'static str> {
+    if !s.view.viewing || (id.starts_with("file.") && always_allowed(id, params)) {
+        return None;
+    }
+    // Undo and Redo change the document too, though they aren't marked as changing it.
+    if !s.registry.get(id).is_some_and(|spec| spec.mutates) && !matches!(id, "edit.undo" | "edit.undoTo" | "edit.redo" | "edit.repeat") {
+        return None;
+    }
+    Some("the document is open for viewing")
+}
+
 /// The user name (`file.setAuthor`) is the identity a named exception range is checked against,
 /// and the author recorded on new revisions and comments: it can't change while the document is
 /// protected. Word lets the user name change under protection (it is a preference there); this
@@ -263,6 +277,9 @@ pub(crate) fn check_user_name(s: &Session) -> Result<(), CmdError> {
 /// document has one. (`file.versions` is a pure command, so `check_before` doesn't see it; the
 /// command checks this itself — see [`check_version_restore`].)
 pub(crate) fn check_version_restore(s: &Session) -> Result<(), CmdError> {
+    if s.view.viewing {
+        return Err(CmdError::Disabled("file.versions: the document is open for viewing".into()));
+    }
     if enforced(&s.doc) {
         return Err(CmdError::Disabled("file.versions: stop protection before restoring a version".into()));
     }

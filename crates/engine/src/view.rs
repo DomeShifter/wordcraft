@@ -94,6 +94,12 @@ pub struct ViewState {
     /// and page count are unchanged.
     #[serde(default)]
     pub hide_white_space: bool,
+    /// Viewing (StarDocs 0005): the document is open to be read, not changed, for this session
+    /// only. Every command that changes the document is refused (see
+    /// [`crate::cmd::protect::viewing_refuses`]); unlike Restrict Editing's read only, nothing of
+    /// it is written into the document. Shown by `view.state`, never read back.
+    #[serde(default, skip_deserializing)]
+    pub viewing: bool,
     /// Outline view: collapsed headings, Show Level, first lines, text formatting.
     #[serde(default)]
     pub outline: crate::cmd::outline::OutlineState,
@@ -213,6 +219,7 @@ impl Default for ViewState {
             draw: Default::default(),
             field_codes: false,
             hide_white_space: false,
+            viewing: false,
             outline: Default::default(),
             design_mode: false,
             full_screen: false,

@@ -72,6 +72,10 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .params(r#"{"value"?: bool}"#)
         .pure(),
+        // Viewing (StarDocs 0005): read only for this session, not saved in the document.
+        CommandSpec::new("view.viewing", "Viewing", "View › Mode", |s, v| toggle(s, v, |x| &mut x.viewing))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
         CommandSpec::new("view.ruler", "Ruler", "View › Show", |s, v| toggle(s, v, |x| &mut x.ruler)).pure(),
         // The drawing grid over the page (screen only; never printed or exported).
         CommandSpec::new("view.gridlines", "Gridlines", "View › Show", |s, v| toggle(s, v, |x| &mut x.gridlines))

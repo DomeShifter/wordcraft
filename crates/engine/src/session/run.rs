@@ -77,6 +77,10 @@ impl Session {
         if let Some(why) = (spec.enabled)(self) {
             return Err(CmdError::Disabled(format!("{id}: {why}")));
         }
+        // Viewing (StarDocs 0005): nothing that changes the document runs.
+        if let Some(why) = crate::cmd::protect::viewing_refuses(self, id, params) {
+            return Err(CmdError::Disabled(format!("{id}: {why}")));
+        }
         // Restrict Editing: refused outright, or allowed as long as it only edits the exceptions.
         let guard = if spec.mutates { crate::cmd::protect::check_before(self, id, params)? } else { false };
         // Quick Parts aren't part of the document, so a refused edit puts them back itself (the Spike).
