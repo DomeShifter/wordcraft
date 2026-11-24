@@ -72,6 +72,21 @@ pub(crate) struct CommentDrafts {
     document: u64,
     edits: BTreeMap<u32, String>,
     replies: BTreeMap<u32, String>,
+    /// The comment field being typed in now: its text is written to the document as it is typed,
+    /// and every edit of one sitting joins the first one's undo step.
+    live: Option<LiveEdit>,
+    /// A comment just made with New Comment: its field takes the keyboard, and the page doesn't
+    /// take it back meanwhile. The count is the frames left to wait for the field to be drawn.
+    focus: Option<(u32, u8)>,
+}
+
+/// A comment field's current sitting: which comment, its text when the sitting began (Escape
+/// puts it back), and the document's revision after our last write, if that write is the newest
+/// change (then the next edit joins its undo step).
+struct LiveEdit {
+    id: u32,
+    original: String,
+    rev: Option<u64>,
 }
 
 impl CommentDrafts {
@@ -80,6 +95,8 @@ impl CommentDrafts {
         if self.document != document {
             self.edits.clear();
             self.replies.clear();
+            self.live = None;
+            self.focus = None;
             self.document = document;
         }
         self
@@ -98,6 +115,12 @@ pub(crate) fn comment_draft(app: &WordApp, id: u32) -> Option<String> {
     if d.document == app.session.document_id() { d.edits.get(&id).cloned() } else { None }
 }
 
+/// Put a draft in comment `id`'s field, as if typed and then refused by the document.
+#[cfg(test)]
+pub(crate) fn set_comment_draft(app: &mut WordApp, id: u32, text: &str) {
+    drafts(app).edits.insert(id, text.to_string());
+}
+
 /// Whether the open document has a comment or reply draft not yet written to it (typed, or
 /// kept after the document refused it): closing the page would lose it.
 pub(crate) fn has_comment_drafts(app: &WordApp) -> bool {
@@ -110,9 +133,37 @@ fn drafts(app: &mut WordApp) -> &mut CommentDrafts {
     app.comment_drafts.of(document)
 }
 
-/// A comment's text, editable in place (the Comments pane and the balloons). Typing stays in a
-/// draft until the field loses focus; then [`commit_comment`] writes it back with one
-/// `review.editComment`, so each editing session is one undo step.
+/// Give the keyboard to comment `id`'s field (its pane card or balloon): New Comment puts the
+/// caret in the new comment, as Word and Google Docs do.
+pub(crate) fn focus_comment(app: &mut WordApp, id: u32) {
+    drafts(app).focus = Some((id, COMMENT_FOCUS_FRAMES));
+}
+
+/// Frames a new comment's field has to be drawn and take the keyboard before the page may take
+/// it back (when neither the pane nor a balloon shows the comment).
+const COMMENT_FOCUS_FRAMES: u8 = 10;
+
+/// Whether a comment field is about to take the keyboard, so the page must not ask for it this
+/// frame. Called once a frame by the page; each call uses up one frame of the wait.
+pub(crate) fn take_comment_focus_frame(app: &mut WordApp) -> bool {
+    let d = drafts(app);
+    match d.focus.as_mut() {
+        Some((_, 0)) => {
+            d.focus = None;
+            false
+        }
+        Some((_, left)) => {
+            *left -= 1;
+            true
+        }
+        None => false,
+    }
+}
+
+/// A comment's text, editable in place (the Comments pane and the balloons). Every edit is
+/// written to the document as it is typed (so a save, an autosave or closing the page never
+/// misses it), and the edits of one sitting in the field are one `review.editComment` undo step.
+/// Escape puts back the text the field had when the sitting began.
 pub(crate) fn comment_editor(app: &mut WordApp, ui: &mut Ui, id: u32, font: Option<egui::FontId>, focus: bool) {
     let Some(part) = app.session.doc.comments.get(&id).map(|c| c.part) else { return };
     let draft = drafts(app).edits.get(&id).cloned();
@@ -130,21 +181,51 @@ pub(crate) fn comment_editor(app: &mut WordApp, ui: &mut Ui, id: u32, font: Opti
         edit = edit.font(f.clone());
     }
     let r = capped_field(ui, field.with("scroll"), font.as_ref(), edit);
-    if focus {
+    let wanted = drafts(app).focus.is_some_and(|(f, _)| f == id);
+    if wanted && r.has_focus() {
+        drafts(app).focus = None;
+    } else if focus || wanted {
         r.request_focus();
     }
     if r.changed() {
+        let d = drafts(app);
+        if d.live.as_ref().is_none_or(|l| l.id != id) {
+            let original = app.session.doc.plain_text(StoryRef::Part(part));
+            drafts(app).live = Some(LiveEdit { id, original, rev: None });
+        }
         drafts(app).edits.insert(id, text);
+        // A refusal is on the status line, and the draft stays in the field.
+        let _ = write_live(app, id);
     }
     if r.lost_focus() {
         if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-            // Escape throws the draft away: the field shows the comment's text again.
+            // Escape throws this sitting's typing away: the comment gets its text back.
+            let original = drafts(app).live.take().filter(|l| l.id == id).map(|l| l.original);
             drafts(app).edits.remove(&id);
+            if let Some(original) = original {
+                drafts(app).edits.insert(id, original);
+                let _ = commit_comment(app, id);
+            }
         } else {
-            // A refusal is on the status line, and the draft stays in the field.
             let _ = commit_comment(app, id);
         }
+        if drafts(app).live.as_ref().is_some_and(|l| l.id == id) {
+            drafts(app).live = None;
+        }
     }
+}
+
+/// Write comment `id`'s draft as part of the field's sitting: it joins the sitting's undo step
+/// when our previous write is still the newest change.
+fn write_live(app: &mut WordApp, id: u32) -> Result<(), String> {
+    let rev = app.session.rev();
+    let join = drafts(app).live.as_ref().is_some_and(|l| l.id == id && l.rev == Some(rev));
+    let wrote = commit_comment_joined(app, id, join)?;
+    let rev = app.session.rev();
+    if wrote && let Some(l) = drafts(app).live.as_mut().filter(|l| l.id == id) {
+        l.rev = Some(rev);
+    }
+    Ok(())
 }
 
 /// Lines of a comment's text that its card or balloon shows; longer text scrolls in its field and
@@ -172,14 +253,24 @@ fn field_id(app: &WordApp, ui: &Ui, kind: &str, id: u32) -> egui::Id {
 /// Write a comment's draft text back, when it has one that differs from the comment. The draft
 /// is dropped once written (or when there is nothing to write); a refused edit keeps it.
 pub(crate) fn commit_comment(app: &mut WordApp, id: u32) -> Result<(), String> {
-    let Some(text) = drafts(app).edits.get(&id).cloned() else { return Ok(()) };
+    commit_comment_joined(app, id, false).map(|_| ())
+}
+
+/// [`commit_comment`], joining the previous undo step when `join`; returns whether it wrote.
+fn commit_comment_joined(app: &mut WordApp, id: u32, join: bool) -> Result<bool, String> {
+    let Some(text) = drafts(app).edits.get(&id).cloned() else { return Ok(false) };
+    let mut wrote = false;
     if let Some(part) = app.session.doc.comments.get(&id).map(|c| c.part)
         && text != app.session.doc.plain_text(StoryRef::Part(part))
     {
+        if join {
+            app.session.join_next_undo();
+        }
         app.run("review.editComment", json!({"id": id, "text": text}))?;
+        wrote = true;
     }
     drafts(app).edits.remove(&id);
-    Ok(())
+    Ok(wrote)
 }
 
 /// The comment a reply to `id` answers: replies to a reply join its thread.

@@ -25,10 +25,11 @@ mod side;
 mod state;
 
 #[cfg(test)]
-pub(crate) use comments::comment_draft;
+pub(crate) use comments::{comment_draft, set_comment_draft};
 use comments::comments;
 pub(crate) use comments::{
-    COMMENT_ROWS, CommentDrafts, comment_editor, commit_comment, commit_reply, flush_comment_drafts, has_comment_drafts, reply_editor,
+    COMMENT_ROWS, CommentDrafts, comment_editor, commit_comment, commit_reply, flush_comment_drafts, focus_comment, has_comment_drafts, reply_editor,
+    take_comment_focus_frame,
 };
 use host::Content;
 #[cfg(test)]

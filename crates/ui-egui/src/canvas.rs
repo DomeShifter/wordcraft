@@ -891,6 +891,10 @@ fn update_canvas_focus(app: &mut WordApp, ui: &mut Ui, resp: &egui::Response, im
         ui.memory_mut(|memory| memory.interrupt_ime());
     }
     // Not while a modal dialog is open: it has the keyboard, and the page takes it when it closes.
+    // Nor while the comment New Comment just made takes it: that uses up the request.
+    if app.canvas.want_focus && crate::panes::take_comment_focus_frame(app) {
+        app.canvas.want_focus = false;
+    }
     let wants = app.canvas.want_focus && !app.modal_open();
     if focus_click || (wants && !resp.has_focus()) {
         resp.request_focus();

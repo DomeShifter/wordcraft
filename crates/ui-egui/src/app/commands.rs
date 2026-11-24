@@ -84,6 +84,12 @@ impl WordApp {
         if matches!(id, "insert.picture" | "insert.icon") {
             self.select_inserted_picture(&r);
         }
+        // New Comment puts the caret in the new comment's field, as Word and Google Docs do.
+        if id == "review.newComment"
+            && let Some(c) = r.as_ref().ok().and_then(|v| v.get("id")).and_then(Value::as_u64).and_then(|c| u32::try_from(c).ok())
+        {
+            panes::focus_comment(self, c);
+        }
         // User proofing opens the persistent task pane; scripts keep structured results.
         // Right-click and Shift+F10 retain their compact suggestions menu.
         if matches!(id, "review.spelling" | "review.editor")

@@ -1843,7 +1843,8 @@ fn a_balloon_edits_its_comment() {
         h.event(egui::Event::Text(piece.into()));
         h.step();
     }
-    assert_eq!(h.state().session.undo_depth(), depth, "nothing is written while typing");
+    // StarDocs 0002: written as it is typed, the whole sitting one undo step.
+    assert_eq!(h.state().session.undo_depth(), depth + 1, "written while typing, as one step");
     leave_field(&mut h);
     let part = h.state().session.doc.comments[&id].part;
     let text = h.state().session.doc.plain_text(StoryRef::Part(part));
@@ -2105,8 +2106,8 @@ fn comment_text(app: &WordApp, id: u32) -> String {
 fn a_refused_comment_edit_keeps_the_draft() {
     let (mut h, id) = comment_harness();
     click_balloon(&mut h, id);
-    type_in(&mut h, "Edited");
     h.state_mut().session.doc.settings.protection = Some("readOnly".into());
+    crate::panes::set_comment_draft(h.state_mut(), id, "Edited");
     leave_field(&mut h);
     assert_eq!(comment_text(h.state(), id), "Original", "the protected document refused the edit");
     let status = h.state().status_msg.as_ref().map(|(s, _)| s.clone()).unwrap_or_default();
@@ -2213,9 +2214,45 @@ fn refused_draft() -> (egui_kittest::Harness<'static, WordApp>, u32) {
     let (mut h, id) = comment_harness();
     h.state_mut().session.dirty = false;
     click_balloon(&mut h, id);
-    type_in(&mut h, "Refused ");
     h.state_mut().session.doc.settings.protection = Some("readOnly".into());
+    crate::panes::set_comment_draft(h.state_mut(), id, "Refused Original");
+    let _ = crate::panes::commit_comment(h.state_mut(), id);
+    assert_eq!(comment_text(h.state(), id), "Original", "the edit was refused");
     (h, id)
+}
+
+/// StarDocs 0002: what is typed in a comment is in the document at once, before the field is
+/// left: an autosave or a closed page has it, and no empty comment is saved.
+#[test]
+fn typing_in_a_comment_writes_it_at_once() {
+    let (mut h, id) = comment_harness();
+    h.state_mut().session.dirty = false;
+    click_balloon(&mut h, id);
+    type_in(&mut h, "Typed ");
+    assert!(comment_text(h.state(), id).contains("Typed"), "written while the field has the keyboard: {:?}", comment_text(h.state(), id));
+    assert!(h.state().session.dirty, "an unsaved change, so the document saves");
+    assert!(!crate::panes::has_comment_drafts(h.state()), "nothing left only in the field");
+}
+
+/// StarDocs 0002: New Comment puts the keyboard in the new comment, so typing goes there and
+/// not into the page.
+#[test]
+fn new_comment_takes_the_keyboard() {
+    let (mut h, _) = comment_harness();
+    leave_field(&mut h);
+    let body = h.state().session.doc.plain_text(StoryRef::Body);
+    let id = h.state_mut().run("review.newComment", json!({"text": ""})).unwrap()["id"].as_u64().unwrap() as u32;
+    // As a click on a menu does: the page asks for the keyboard back.
+    h.state_mut().canvas.want_focus = true;
+    for _ in 0..4 {
+        h.step();
+    }
+    type_in(&mut h, "New note");
+    for _ in 0..2 {
+        h.step();
+    }
+    assert_eq!(comment_text(h.state(), id), "New note", "typed into the new comment");
+    assert_eq!(h.state().session.doc.plain_text(StoryRef::Body), body, "not into the page");
 }
 
 /// #1348: a draft the document refuses doesn't keep the window open: closing asks to save,
