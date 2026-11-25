@@ -21,6 +21,7 @@ mod context_menu;
 pub(crate) use context_menu::issue_heading;
 mod cursor;
 mod geometry;
+mod host_cards;
 mod input;
 mod links;
 mod margins;

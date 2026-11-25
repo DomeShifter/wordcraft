@@ -46,15 +46,16 @@ pub(super) fn comments(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook) {
             for c in list.iter().filter(|c| is_root(c)) {
                 let id = c.get("id").and_then(Value::as_u64).unwrap_or(0);
                 let replies: Vec<&Value> = list.iter().filter(|r| r.get("parent").and_then(Value::as_u64) == Some(id)).collect();
-                card(app, ui, look, c, &replies);
+                card(app, ui, look, look.card, c, &replies);
                 ui.add_space(look.card_gap);
             }
         });
     });
 }
 
-/// One thread: the comment, its replies, and the reply box (or Comment / Cancel on a new one).
-fn card(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook, c: &Value, replies: &[&Value]) {
+/// One thread: the comment, its replies, and the reply box (or Comment / Cancel on a new one),
+/// in `frame` (the pane's card, or a selected card beside the page, StarDocs 0009).
+pub(crate) fn card(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook, frame: egui::Frame, c: &Value, replies: &[&Value]) {
     let id = c.get("id").and_then(Value::as_u64).and_then(|i| u32::try_from(i).ok()).unwrap_or(0);
     let resolved = c.get("resolved").and_then(Value::as_bool).unwrap_or(false);
     let document = app.session.document_id();
@@ -65,7 +66,7 @@ fn card(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook, c: &Value, replies:
         ui.data_mut(|d| d.insert_temp(new_key, true));
     }
     let is_new = ui.data(|d| d.get_temp::<bool>(new_key)).unwrap_or(false);
-    look.card.show(ui, |ui| {
+    frame.show(ui, |ui| {
         ui.set_width(ui.available_width());
         header(app, ui, look, c, true, resolved);
         ui.add_space(4.0);
@@ -124,7 +125,7 @@ fn button_row(ui: &mut Ui, add: impl FnOnce(&mut Ui)) {
 }
 
 /// Author (bold), time (grey) and, on a thread's first comment, Resolve and the ⋮ menu.
-fn header(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook, c: &Value, root: bool, resolved: bool) {
+pub(crate) fn header(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook, c: &Value, root: bool, resolved: bool) {
     let id = c.get("id").and_then(Value::as_u64).unwrap_or(0);
     let author = c.get("author").and_then(Value::as_str).unwrap_or("").to_string();
     let when = u32::try_from(id).ok().and_then(|i| app.session.doc.comments.get(&i)).map(crate::local_time::comment_time).unwrap_or_default();

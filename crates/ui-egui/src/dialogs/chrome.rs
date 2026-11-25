@@ -48,11 +48,14 @@ const DIALOG_CENTRED_FRAMES: u8 = 2;
 /// the bottom edge and the tab strip stays under the mouse (#507). It is no longer anchored after
 /// that, so dragging the title bar moves it (#732). egui keeps it on screen if it grows past the
 /// bottom.
-fn place_dialog<'a>(ctx: &egui::Context, id: egui::Id, w: egui::Window<'a>) -> egui::Window<'a> {
+fn place_dialog<'a>(ctx: &egui::Context, id: egui::Id, w: egui::Window<'a>, host: bool) -> egui::Window<'a> {
     let w = w.pivot(egui::Align2::CENTER_TOP);
+    // A host-styled dialog fills up to the window's height less HOST_DIALOG_SPACE each side, so
+    // it is centred exactly; WordCraft's sits a little above the centre.
+    let lift = if host { 0.0 } else { -40.0 };
     match ctx.data(|d| d.get_temp::<(egui::Id, u8)>(dialog_top_key())) {
         Some((open, frames)) if open == id && frames >= DIALOG_CENTRED_FRAMES => w,
-        _ => w.anchor(egui::Align2::CENTER_CENTER, vec2(0.0, -40.0)),
+        _ => w.anchor(egui::Align2::CENTER_CENTER, vec2(0.0, lift)),
     }
 }
 
@@ -234,13 +237,23 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
         ctx.data_mut(|data| data.insert_temp(crate::host_look::heading_key(), l.heading_font.clone()));
     }
     let shown = crate::host_look::with_buttons(ctx, look.as_ref().map(|l| &l.buttons), || {
-        place_dialog(ctx, id, window).show(ctx, |ui| {
+        place_dialog(ctx, id, window, look.is_some()).show(ctx, |ui| {
             ui.set_min_width(look.as_ref().map_or(340.0, |l| l.min_width));
             if let Some(l) = &look {
                 crate::host_look::apply_body(ui, l);
                 close |= host_title_row(ui, l, tl!(title));
+                // A host-styled dialog always fits the window (StarDocs 0009): its title and ✕
+                // stay on screen and a body taller than the room left scrolls.
+                let room = host_body_room(ctx, l);
+                close |= egui::ScrollArea::vertical()
+                    .id_salt("host_dialog_body")
+                    .max_height(room)
+                    .auto_shrink([true, true])
+                    .show(ui, |ui| crate::rtl::root(ui, |ui| body(app, ui, &mut d)))
+                    .inner;
+            } else {
+                close |= crate::rtl::root(ui, |ui| body(app, ui, &mut d));
             }
-            close |= crate::rtl::root(ui, |ui| body(app, ui, &mut d));
         })
     });
     if look.is_some() {
@@ -284,6 +297,17 @@ pub fn show(app: &mut WordApp, ctx: &egui::Context) {
         app.dialog = Some(d);
     }
 }
+
+/// How tall a host-styled dialog's body may be: the window's height less room above and below
+/// the dialog, its frame's margins and its title row.
+fn host_body_room(ctx: &egui::Context, look: &crate::host_look::DialogLook) -> f32 {
+    let screen = ctx.content_rect().height();
+    let frame = look.frame.total_margin().sum().y;
+    (screen - 2.0 * HOST_DIALOG_SPACE - frame - 32.0 - look.item_spacing.y).max(120.0)
+}
+
+/// Room kept above and below a host-styled dialog.
+const HOST_DIALOG_SPACE: f32 = 24.0;
 
 /// A host-styled dialog's title row: the title at the start, a round ✕ at the end. True when
 /// the ✕ was clicked.

@@ -81,7 +81,25 @@ pub(super) const FLOAT_WIDTH: f32 = 216.0;
 pub(super) fn floating_comments(app: &WordApp) -> bool {
     let s = &app.session;
     let m = &s.prefs.markup;
-    s.balloons_shown() && m.comments && m.comment_display == CommentDisplay::Selected && !s.doc.comments.is_empty() && markup_width(app) <= 0.0
+    s.balloons_shown()
+        && m.comments
+        && m.comment_display == CommentDisplay::Selected
+        && !s.doc.comments.is_empty()
+        && markup_width(app) <= 0.0
+        && host_margin_look(app).is_none()
+}
+
+/// A host's Google-style comment cards (StarDocs 0009), when it gives them.
+pub(crate) fn host_margin_look(app: &WordApp) -> Option<&crate::host_look::MarginLook> {
+    app.host_look.comments.as_ref().and_then(|c| c.margin.as_ref())
+}
+
+/// The host's comment cards, when they show now: comments shown beside pages, some comment, and
+/// the Comments pane (which lists them already) closed.
+pub(crate) fn host_margin(app: &WordApp) -> Option<&crate::host_look::MarginLook> {
+    let s = &app.session;
+    let shown = s.balloons_shown() && s.prefs.markup.comments && !s.doc.comments.is_empty() && !s.view.comments_pane;
+    host_margin_look(app).filter(|_| shown)
 }
 
 /// The comment shown when only the selected one is: the clicked balloon, else the comment whose
@@ -99,7 +117,8 @@ pub fn markup_width(app: &WordApp) -> f32 {
         return 0.0;
     }
     let m = &s.prefs.markup;
-    let comments = m.comments && !s.doc.comments.is_empty() && m.comment_display == CommentDisplay::Margin;
+    // A host's comment cards float beside the page and need no column (StarDocs 0009).
+    let comments = m.comments && !s.doc.comments.is_empty() && m.comment_display == CommentDisplay::Margin && host_margin_look(app).is_none();
     let [has_formats, has_moves, has_deletions] = match app.canvas.markup_facts.get() {
         Some((rev, facts)) if rev == (s.document_id(), s.rev()) => facts,
         _ => {
@@ -216,6 +235,9 @@ pub fn geometry(app: &WordApp, l: &DocLayout, avail: egui::Vec2) -> Geometry {
         return Geometry { rects, size, scale, cols: 1, bands };
     }
     let (mut rects, mut size) = place_pages(&sizes, markup, scale, cols, avail);
+    if let Some(m) = host_margin(app).filter(|_| cols == 1) {
+        make_room_for_cards(&mut rects, size.x, m.card_width + m.gap + 16.0);
+    }
     let mut bands: Vec<(f32, f32)> = rects.iter().map(|r| (0.0, r.height())).collect();
     let editing_part = matches!(app.session.sel.focus.story, StoryRef::Part(_));
     if v.hide_white_space && v.mode == wordcraft_layout::ViewMode::Print && !v.read_mode && cols == 1 && !editing_part && rects.len() > 1 {
@@ -225,6 +247,23 @@ pub fn geometry(app: &WordApp, l: &DocLayout, avail: egui::Vec2) -> Geometry {
         size.y = h;
     }
     Geometry { rects, size, scale, cols, bands }
+}
+
+/// Moves the pages left as far as needed for `need` more room on their right (a host's comment
+/// cards, StarDocs 0009), never closer than [`GAP`] to the left edge: pages stay centred when the
+/// cards fit beside them anyway, and a window too narrow even then keeps them centred (the cards
+/// become icons). `width` is the content's width, which this never changes, so the cards never
+/// make the canvas scroll sideways.
+pub(super) fn make_room_for_cards(rects: &mut [Rect], width: f32, need: f32) {
+    let (Some(left), Some(right)) = (rects.iter().map(|r| r.left()).reduce(f32::min), rects.iter().map(|r| r.right()).reduce(f32::max)) else {
+        return;
+    };
+    let short = need - (width - right);
+    if short > 0.0 && short <= left - GAP {
+        for r in rects.iter_mut() {
+            *r = r.translate(vec2(-short, 0.0));
+        }
+    }
 }
 
 /// While a fit mode (Page Width, One Page, Multiple Pages) sizes the page, keep the session's zoom

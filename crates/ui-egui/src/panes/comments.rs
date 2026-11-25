@@ -1,5 +1,7 @@
 mod host;
 
+pub(crate) use host::{card as host_card, header as host_card_header};
+
 use super::{BTreeMap, StoryRef, Stroke, Tokens, Ui, Value, WordApp, json, regular, semibold};
 
 /// Draws the Comments pane: New Comment and scrollable comment and reply cards with edit, go-to,
@@ -138,6 +140,11 @@ fn drafts(app: &mut WordApp) -> &mut CommentDrafts {
     app.comment_drafts.of(document)
 }
 
+/// The comment whose field is about to take the keyboard (New Comment just made it), if any.
+pub(crate) fn focused_comment(app: &mut WordApp) -> Option<u32> {
+    drafts(app).focus.map(|(id, _)| id)
+}
+
 /// Give the keyboard to comment `id`'s field (its pane card or balloon): New Comment puts the
 /// caret in the new comment, as Word and Google Docs do.
 pub(crate) fn focus_comment(app: &mut WordApp, id: u32) {
@@ -184,6 +191,11 @@ pub(crate) fn comment_editor(app: &mut WordApp, ui: &mut Ui, id: u32, font: Opti
         .hint_text(tl!("Add a comment"));
     if let Some(f) = &font {
         edit = edit.font(f.clone());
+    }
+    // Under a host look a comment reads as text, not as a box to type in, until it is clicked
+    // (StarDocs 0009); the same padding keeps the text where it is.
+    if app.host_look.comments.is_some() && !ui.memory(|m| m.has_focus(field)) {
+        edit = edit.frame(egui::Frame::NONE.inner_margin(ui.spacing().button_padding));
     }
     let r = capped_field(ui, field.with("scroll"), font.as_ref(), edit);
     let wanted = drafts(app).focus.is_some_and(|(f, _)| f == id);
@@ -307,6 +319,10 @@ fn reply_field(app: &mut WordApp, ui: &mut Ui, id: u32, font: Option<egui::FontI
         .hint_text(if post_on_blur { tl!("Write a reply") } else { tl!("Reply") });
     if let Some(f) = &font {
         edit = edit.font(f.clone());
+    }
+    // A host's reply box is a full-height field, as Docs' (StarDocs 0009).
+    if app.host_look.comments.is_some() {
+        edit = edit.margin(egui::vec2(10.0, 9.0));
     }
     let r = capped_field(ui, field.with("scroll"), font.as_ref(), edit);
     if focus {

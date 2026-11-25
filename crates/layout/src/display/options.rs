@@ -49,6 +49,18 @@ pub struct DisplayOptions {
     /// Leave this object out of the page: while it is dragged, the preview under the pointer
     /// stands in for it, so the page must not also show it where it was.
     pub hide_object: Option<wordcraft_doc::Pos>,
+    /// The fill behind commented text, when a host gives its own (StarDocs 0009); `None` keeps
+    /// WordCraft's light purple.
+    pub comment_fill: Option<CommentFill>,
+}
+
+/// A host's fill behind commented text: one colour, and another for the comment it shows as
+/// selected (Google Docs' pale and stronger yellow).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct CommentFill {
+    pub fill: Rgb,
+    pub active: Option<u32>,
+    pub active_fill: Rgb,
 }
 
 impl Default for DisplayOptions {
@@ -63,6 +75,7 @@ impl Default for DisplayOptions {
             hide_ink: false,
             revisions: MarkupOptions::default(),
             hide_object: None,
+            comment_fill: None,
         }
     }
 }
