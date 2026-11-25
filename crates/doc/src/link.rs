@@ -10,6 +10,19 @@ pub fn is_web_or_mail_link(url: &str) -> bool {
     ["http", "https", "mailto"].iter().any(|s| scheme.eq_ignore_ascii_case(s))
 }
 
+/// A smart chip's link (`chip:<kind>:<tip>`, e.g. `chip:person:Ann Lee (@ann)`): the host app
+/// marks a person or a date in the text with it. It is never followed and never leaves the
+/// program: files get the chip's text without a hyperlink.
+pub fn is_chip_link(url: &str) -> bool {
+    url.starts_with("chip:")
+}
+
+/// What hovering a chip shows: the text after its kind (`chip:person:Ann Lee (@ann)` → `Ann Lee (@ann)`).
+pub fn chip_tip(url: &str) -> Option<&str> {
+    let rest = url.strip_prefix("chip:")?;
+    Some(rest.split_once(':').map_or(rest, |(_, tip)| tip))
+}
+
 /// Whether a hyperlink may be written as an `href` (or Markdown destination, RTF `HYPERLINK`
 /// field, ODT `xlink:href`, LaTeX `\href`) in an exported file: a web or email link, a bookmark
 /// (`#name`) or a relative path. Scripts (`javascript:`, `vbscript:`), `data:`, `file:` and every
@@ -120,6 +133,16 @@ mod tests {
     use super::*;
 
     /// Every reader's `HYPERLINK` cases: switches with and without values, quotes, escapes, spelling.
+    #[test]
+    fn chip_links_carry_their_tip() {
+        assert!(is_chip_link("chip:person:Ann Lee (@ann)"));
+        assert!(!is_chip_link("https://example.com/chip:x"));
+        assert_eq!(chip_tip("chip:person:Ann Lee (@ann)"), Some("Ann Lee (@ann)"));
+        assert_eq!(chip_tip("chip:date"), Some("date"));
+        assert_eq!(chip_tip("https://example.com"), None);
+        assert!(!is_safe_href("chip:person:x"));
+    }
+
     #[test]
     fn hyperlink_field_codes_name_their_targets() {
         for (code, want) in [

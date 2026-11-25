@@ -51,6 +51,8 @@ pub(crate) fn follow_link(app: &mut WordApp, link: String) {
         if app.run("edit.goto", serde_json::json!({"bookmark": name})).is_ok() {
             let _ = app.run("select.collapse", serde_json::json!({}));
         }
+    } else if wordcraft_doc::link::is_chip_link(&link) {
+        // A smart chip (person or date) goes nowhere.
     } else if is_followable_link(&link) {
         app.canvas.open_url = Some(link);
     } else {

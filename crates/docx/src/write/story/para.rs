@@ -213,7 +213,8 @@ impl Writer<'_> {
                     w.close("w:hyperlink");
                 }
                 open_link = None;
-                if let Some(l) = props.link.as_deref().filter(|l| !l.is_empty()) {
+                // A smart chip's link stays in the program: Word gets its text only.
+                if let Some(l) = props.link.as_deref().filter(|l| !l.is_empty() && !wordcraft_doc::link::is_chip_link(l)) {
                     if let Some(anchor) = l.strip_prefix('#') {
                         w.open("w:hyperlink", &[("w:anchor", anchor), ("w:history", "1")]);
                     } else {
