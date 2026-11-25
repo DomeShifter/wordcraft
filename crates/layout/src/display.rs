@@ -28,7 +28,7 @@ pub(crate) use lines::{leader_pitch, leader_xs};
 pub use lines::{mark_text_width, section_break_label};
 pub(crate) use objects::inline_rect;
 pub use objects::seg_path;
-pub use options::{BalloonMode, ChangeBar, CommentDisplay, DeleteMark, DisplayOptions, FormattingMarks, InsertMark, MarkupOptions};
+pub use options::{BalloonMode, ChangeBar, CommentDisplay, CommentFill, DeleteMark, DisplayOptions, FormattingMarks, InsertMark, MarkupOptions};
 pub use page::{CHANGE_BAR, ItemDisplay, MOVE_COLOR, object_display, page_display, page_layers, revision_color};
 pub use paint::{Paint, Stroke, paint_for};
 

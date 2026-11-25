@@ -405,30 +405,34 @@ fn emphasis_mark(mark: wordcraft_doc::props::EmphasisMark, cx: f32, base: f32, s
 
 fn comment_backgrounds(ctx: &LineContext<'_, '_, '_>, out: &mut Vec<Draw>) {
     let Some(para) = ctx.para.filter(|_| ctx.opts.markup && ctx.opts.revisions.comments) else { return };
-    let mut open: Option<usize> = None;
+    // Each range keeps the id of the comment that opened it (the outer one where ranges nest).
+    let mut open: Option<(usize, u32)> = None;
     let mut ranges = Vec::new();
     for off in para.object_offsets() {
         match para.object_at(off) {
-            Some(InlineObject::CommentStart { .. }) => open = open.or(Some(off)),
-            Some(InlineObject::CommentEnd { .. }) => ranges.push((open.take().unwrap_or(0), off)),
+            Some(InlineObject::CommentStart { id }) => open = open.or(Some((off, *id))),
+            Some(InlineObject::CommentEnd { id }) => {
+                let (start, first) = open.take().unwrap_or((0, *id));
+                ranges.push((start, off, first));
+            }
             _ => {}
         }
     }
-    if let Some(start) = open {
-        ranges.push((start, para.len()));
+    if let Some((start, id)) = open {
+        ranges.push((start, para.len(), id));
     }
-    for (start, end) in ranges {
+    for (start, end, id) in ranges {
         if end <= ctx.line.start || start >= ctx.line.stop {
             continue;
         }
+        let color = match ctx.opts.comment_fill {
+            Some(f) if f.active == Some(id) => f.active_fill,
+            Some(f) => f.fill,
+            None => Rgb(0xEF, 0xE3, 0xF7),
+        };
         for (x0, x1) in ctx.pl.x_spans(ctx.li, start.max(ctx.line.start), end.min(ctx.line.stop)) {
             if x1 > x0 {
-                out.push(Draw::Fill {
-                    rect: Rect::new(ctx.x + x0, ctx.top, x1 - x0, ctx.line.height),
-                    color: Rgb(0xEF, 0xE3, 0xF7),
-                    alpha: ctx.alpha,
-                    text_bg: false,
-                });
+                out.push(Draw::Fill { rect: Rect::new(ctx.x + x0, ctx.top, x1 - x0, ctx.line.height), color, alpha: ctx.alpha, text_bg: false });
             }
         }
     }

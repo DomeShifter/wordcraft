@@ -73,6 +73,7 @@ impl WordApp {
             return r;
         }
         let applied = applied_font(id, &params);
+        let pane_before = self.session.view.comments_pane;
         let r = self.execute_user(id, params);
         // A save error already on the status line is the reason to see; the refusal shows otherwise.
         if let (Some(e), true) = (refused, r.is_ok()) {
@@ -89,6 +90,11 @@ impl WordApp {
             && let Some(c) = r.as_ref().ok().and_then(|v| v.get("id")).and_then(Value::as_u64).and_then(|c| u32::try_from(c).ok())
         {
             panes::focus_comment(self, c);
+            // A host's comment cards beside the page (StarDocs 0009) show the new comment there,
+            // as Google Docs does, so the Comments pane stays as it was.
+            if self.host_look.comments.as_ref().is_some_and(|l| l.margin.is_some()) {
+                self.session.view.comments_pane = pane_before;
+            }
         }
         // User proofing opens the persistent task pane; scripts keep structured results.
         // Right-click and Shift+F10 retain their compact suggestions menu.

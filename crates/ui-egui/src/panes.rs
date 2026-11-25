@@ -24,13 +24,13 @@ mod nav;
 mod side;
 mod state;
 
-#[cfg(test)]
-pub(crate) use comments::{comment_draft, set_comment_draft};
 use comments::comments;
 pub(crate) use comments::{
-    COMMENT_ROWS, CommentDrafts, comment_editor, commit_comment, commit_reply, flush_comment_drafts, focus_comment, has_comment_drafts, reply_editor,
-    take_comment_focus_frame,
+    COMMENT_ROWS, CommentDrafts, comment_editor, commit_comment, commit_reply, flush_comment_drafts, focus_comment, focused_comment,
+    has_comment_drafts, host_card, host_card_header, reply_editor, take_comment_focus_frame,
 };
+#[cfg(test)]
+pub(crate) use comments::{comment_draft, set_comment_draft};
 use host::Content;
 #[cfg(test)]
 pub(crate) use host::apply;

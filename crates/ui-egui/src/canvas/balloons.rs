@@ -9,10 +9,15 @@ use super::{
 /// comment's replies under it. Clicking a balloon selects it, like Word: its text becomes editable
 /// in place, with Reply, Resolve and Delete (the same commands as the Comments pane).
 pub(super) fn balloons(app: &mut WordApp, ui: &mut Ui, painter: &egui::Painter, rects: &[Rect], layout: &DocLayout, scale: f32, view: Rect) {
+    if super::geometry::host_margin(app).is_some() {
+        return super::host_cards::host_cards(app, ui, rects, layout, scale, view);
+    }
     app.canvas.balloon_rects.clear();
     let mw = markup_width(app);
     let float = floating_comments(app);
-    if app.canvas.balloon.is_some_and(|id| (mw <= 0.0 && !float) || !app.session.doc.comments.contains_key(&id)) {
+    // (A host's cards, when the Comments pane hides them, leave the selection to the pane.)
+    let hosted = super::geometry::host_margin_look(app).is_some();
+    if !hosted && app.canvas.balloon.is_some_and(|id| (mw <= 0.0 && !float) || !app.session.doc.comments.contains_key(&id)) {
         deselect_balloon(app);
     }
     if mw <= 0.0 && !float {

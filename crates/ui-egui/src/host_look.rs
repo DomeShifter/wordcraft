@@ -32,6 +32,12 @@ pub struct DialogLook {
     pub item_spacing: Vec2,
     /// Height of fields, check boxes and list boxes.
     pub row_height: f32,
+    /// Fields and drop-downs (StarDocs 0009): outline at rest, under the pointer and while
+    /// typing or open, and corner radius.
+    pub field_stroke: Stroke,
+    pub field_hover: Stroke,
+    pub field_focus: Stroke,
+    pub field_radius: u8,
     /// Narrowest a dialog is drawn.
     pub min_width: f32,
     /// The close (✕) button's icon colour and round hover fill.
@@ -77,6 +83,27 @@ pub struct CommentsLook {
     /// Icon buttons in the header and on cards (add, resolve, more, close).
     pub icon_color: Color32,
     pub buttons: ButtonLook,
+    /// Comments beside the page as cards (StarDocs 0009); `None` keeps WordCraft's balloons.
+    pub margin: Option<MarginLook>,
+}
+
+/// Comments beside the page the way Google Docs shows them (StarDocs 0009): one card per thread
+/// in the space right of the page, level with its text, with no markup column and no leader
+/// lines; the commented text is filled instead. The page moves left only as far as the cards
+/// need, and a window too narrow for them shows a comment icon at the page's edge per comment,
+/// whose card opens over the page when clicked. Cards take [`CommentsLook::card`] and its fonts.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MarginLook {
+    /// A card's width, and the space between the page and the cards.
+    pub card_width: f32,
+    pub gap: f32,
+    /// Behind commented text, and behind the selected comment's text.
+    pub highlight: Color32,
+    pub highlight_active: Color32,
+    /// The selected card's frame (a stronger shadow, as Docs lifts it).
+    pub active_card: Frame,
+    /// The comment icons of a narrow window.
+    pub icon_color: Color32,
 }
 
 fn buttons_key() -> egui::Id {
@@ -176,6 +203,15 @@ pub(crate) fn apply_body(ui: &mut Ui, look: &DialogLook) {
     style.spacing.item_spacing = look.item_spacing;
     style.spacing.interact_size.y = look.row_height;
     style.spacing.button_padding.y = style.spacing.button_padding.y.max((look.row_height - look.body_size * 1.3) / 2.0);
+    let w = &mut style.visuals.widgets;
+    for (state, stroke) in
+        [(&mut w.inactive, look.field_stroke), (&mut w.hovered, look.field_hover), (&mut w.active, look.field_focus), (&mut w.open, look.field_focus)]
+    {
+        state.bg_stroke = stroke;
+        state.corner_radius = CornerRadius::same(look.field_radius);
+        state.expansion = 0.0;
+    }
+    style.visuals.selection.stroke = look.field_focus;
 }
 
 /// The group-heading font for a dialog: the host's, else WordCraft's 12.5 pt semibold.
