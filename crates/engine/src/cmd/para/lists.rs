@@ -17,11 +17,16 @@ pub(super) fn list(s: &mut Session, v: &Value, default: ListKind) -> CmdResult {
             let want = wordcraft_doc::numbering::levels_for(kind);
             want.get(usize::from(n.level)).is_some_and(|w| {
                 (w.format == wordcraft_doc::section::NumFormat::Bullet) == (l.format == wordcraft_doc::section::NumFormat::Bullet)
-                    && (p::str(v, "kind").is_none() || w.text == l.text)
+                    && (p::str(v, "kind").is_none() || (w.text == l.text && w.format == l.format))
             })
         })
     };
-    let remove = off || (!current.is_empty() && current.iter().all(|n| n.as_ref().is_some_and(same_kind)));
+    // "apply": a style picker's choice always sets that style, never toggles the list off.
+    let apply = p::bool(v, "apply").unwrap_or(false);
+    if apply && !off && !current.is_empty() && current.iter().all(|n| n.as_ref().is_some_and(same_kind)) {
+        return sel_result(s);
+    }
+    let remove = off || (!apply && !current.is_empty() && current.iter().all(|n| n.as_ref().is_some_and(same_kind)));
     if remove {
         let keep_list_style = s.doc.styles.resolve_para(&ParaProps { style: Some("ListParagraph".into()), ..Default::default() }).numbering.is_some();
         return fmt(s, &|p| {
