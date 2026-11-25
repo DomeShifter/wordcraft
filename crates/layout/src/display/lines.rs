@@ -46,6 +46,8 @@ struct LineContext<'a, 'authors, 'author_doc> {
     alpha: f32,
     down: bool,
     auto: Option<Rgb>,
+    /// The paragraph is a ticked checklist item: its struck text is drawn grey (StarDocs 0013).
+    ticked: bool,
 }
 
 impl LineContext<'_, '_, '_> {
@@ -55,6 +57,20 @@ impl LineContext<'_, '_, '_> {
             _ => text_color(color, background),
         }
     }
+
+    /// A plain run's colour: a ticked checklist item's struck text (not its box) faded grey.
+    fn run_ink(&self, rc: &wordcraft_doc::resolve::ResolvedChar) -> Rgb {
+        let ink = self.ink(&rc.color, rc.shading.or(rc.highlight));
+        if self.ticked && rc.strike { ticked_ink(ink) } else { ink }
+    }
+}
+
+/// How a ticked checklist item's text is drawn, as in Google Docs: its own colour, faded halfway
+/// to white (black text becomes mid grey). Display only: the document keeps the real colour, so
+/// unticking brings it straight back.
+pub(crate) fn ticked_ink(c: Rgb) -> Rgb {
+    let f = |x: u8| ((u16::from(x) + 255).div_ceil(2)) as u8;
+    Rgb(f(c.0), f(c.1), f(c.2))
 }
 
 pub(super) fn lines(input: LineRender<'_, '_, '_>, out: &mut Vec<Draw>) {
@@ -62,6 +78,7 @@ pub(super) fn lines(input: LineRender<'_, '_, '_>, out: &mut Vec<Draw>) {
     let (l0, l1) = (range.start, range.end);
     let Some(first) = pl.lines.get(l0) else { return };
     let para = doc.para(story, path);
+    let ticked = doc.checklist_ticked(story, path);
     // Inside a text box whose shape style gives its text a colour, that is what automatic means.
     let auto = match story {
         StoryRef::Part(id) => doc.parts.get(&id).and_then(|p| p.body.auto_color),
@@ -72,7 +89,7 @@ pub(super) fn lines(input: LineRender<'_, '_, '_>, out: &mut Vec<Draw>) {
         let top = y + (line.top - first.top);
         let base = top + (line.baseline - line.top);
         let bottom = top + line.height;
-        let ctx = LineContext { doc, story, path, pl, para, line, li, x, top, base, bottom, opts, authors, alpha, down, auto };
+        let ctx = LineContext { doc, story, path, pl, para, line, li, x, top, base, bottom, opts, authors, alpha, down, auto, ticked };
         comment_backgrounds(&ctx, out);
         character_backgrounds(&ctx, out);
         draw_label_and_hyphen(&ctx, out);
@@ -224,7 +241,7 @@ fn draw_glyph_runs(ctx: &LineContext<'_, '_, '_>, out: &mut Vec<Draw>) {
             (Some(r), _) if moved_to => m.move_to_color.unwrap_or_else(|| author(r)),
             (Some(r), _) => m.insert_color.unwrap_or_else(|| author(r)),
             (None, Some(r)) => m.delete_color.unwrap_or_else(|| author(r)),
-            _ => ctx.ink(&rc.color, rc.shading.or(rc.highlight)),
+            _ => ctx.run_ink(rc),
         };
         // The highlight or shading drawn under this run (as filled in the backgrounds pass).
         let text_bg = rc.highlight.or(rc.shading);

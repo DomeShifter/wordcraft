@@ -28,6 +28,10 @@ pub const MAX_CONTROL_TEXT: usize = 1024;
 /// Most list entries a combo box or drop-down list keeps.
 pub const MAX_LIST_ITEMS: usize = 1000;
 
+/// The tag that makes a check box at the start of a paragraph a checklist item's box (StarDocs
+/// 0006; the engine's `list.checklist` puts it there).
+pub const CHECKLIST_TAG: &str = "checklist";
+
 /// What may be done to a control (`w:lock`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -508,6 +512,22 @@ fn balance_list(bl: &mut Blocks) -> usize {
 }
 
 impl Document {
+    /// The box a checklist item starts with, when the paragraph at `path` is an item (a check
+    /// box content control tagged [`CHECKLIST_TAG`] at offset 0).
+    pub fn checklist_box(&self, story: StoryRef, path: &Path) -> Option<ControlRange> {
+        let r = self.control_at(&Pos::new(story, path.clone(), OBJ.len_utf8()))?;
+        (r.start.off == 0 && r.start.path == *path && r.control.tag == CHECKLIST_TAG && matches!(r.control.kind, ControlKind::CheckBox { .. }))
+            .then_some(r)
+    }
+
+    /// Whether the paragraph at `path` is a ticked checklist item: drawn greyed out, as Docs does
+    /// (StarDocs 0013; the strike through is real formatting, the grey is only how it's shown).
+    pub fn checklist_ticked(&self, story: StoryRef, path: &Path) -> bool {
+        // Read straight off the paragraph's first object: this runs for every paragraph drawn.
+        let Some(InlineObject::ControlStart { control }) = self.para(story, path).and_then(|p| p.object_at(0)) else { return false };
+        control.tag == CHECKLIST_TAG && matches!(control.kind, ControlKind::CheckBox { checked: true, .. })
+    }
+
     fn control_stories(&self) -> Vec<StoryRef> {
         std::iter::once(StoryRef::Body).chain(self.parts.keys().map(|k| StoryRef::Part(*k))).collect()
     }

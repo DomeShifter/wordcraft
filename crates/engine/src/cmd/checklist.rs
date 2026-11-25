@@ -15,7 +15,7 @@ use super::sel_result;
 use crate::{CmdError, CmdResult, CommandSpec, Selection, Session, p};
 
 /// The tag that makes a check box at the start of a paragraph a checklist item's box.
-pub const TAG: &str = "checklist";
+pub const TAG: &str = wordcraft_doc::control::CHECKLIST_TAG;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
@@ -26,8 +26,7 @@ pub fn specs() -> Vec<CommandSpec> {
 
 /// The box a checklist item starts with, when the paragraph at `path` is an item.
 pub fn item_box(doc: &Document, story: StoryRef, path: &Path) -> Option<ControlRange> {
-    let r = doc.control_at(&Pos::new(story, path.clone(), OBJ.len_utf8()))?;
-    (r.start.off == 0 && r.start.path == *path && r.control.tag == TAG && matches!(r.control.kind, ControlKind::CheckBox { .. })).then_some(r)
+    doc.checklist_box(story, path)
 }
 
 /// Where an item's text starts: after its box and the space that follows it.

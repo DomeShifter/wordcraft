@@ -1,4 +1,4 @@
-//! StarDocs fork changes: Viewing (0005), checklists (0006) and Commenting (0010).
+//! StarDocs fork changes: Viewing (0005), checklists (0006; ticked items drawn grey, 0013) and Commenting (0010).
 
 use serde_json::json;
 use wordcraft_doc::StoryRef;
@@ -155,4 +155,79 @@ fn a_checklist_round_trips_through_docx() {
     let at = serde_json::to_value(item_box(&back.doc, StoryRef::Body, &path).unwrap().content_start()).unwrap();
     run(&mut back, "developer.toggleCheckBox", json!({"at": at}));
     assert!(!checked(&back, 0) && !struck(&back, 0));
+}
+
+/// The colours the glyph runs holding `word` are drawn in.
+fn ink_of(s: &mut Session, word: &str) -> Vec<wordcraft_doc::props::Rgb> {
+    let layout = s.layout();
+    wordcraft_layout::display::page_display(&s.doc, &layout.pages[0], &Default::default())
+        .into_iter()
+        .filter_map(|d| match d {
+            wordcraft_layout::display::Draw::Glyphs { text, color, .. } if text.contains(word) => Some(color),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn ticked_checklist_items_draw_grey_and_unticking_restores() {
+    use wordcraft_doc::props::{Rgb, TextColor};
+    const GREY: Rgb = Rgb(0x80, 0x80, 0x80);
+    const RED: Rgb = Rgb(0xC0, 0x00, 0x00);
+    const FADED_RED: Rgb = Rgb(0xE0, 0x80, 0x80);
+    // (word, ticked, nested (indented), red text, colour it is drawn in)
+    let rows: [(&str, bool, bool, bool, Rgb); 6] = [
+        ("Plain", false, false, false, Rgb::BLACK),
+        ("Done", true, false, false, GREY),
+        ("Nested", false, true, false, Rgb::BLACK),
+        ("Deep", true, true, false, GREY),
+        ("Rose", false, false, true, RED),
+        ("Faded", true, false, true, FADED_RED),
+    ];
+    let mut s = s();
+    for (i, (word, ..)) in rows.iter().enumerate() {
+        if i > 0 {
+            run(&mut s, "text.newParagraph", json!({}));
+        }
+        run(&mut s, "text.insert", json!({"text": word}));
+    }
+    run(&mut s, "select.all", json!({}));
+    run(&mut s, "list.checklist", json!({}));
+    let paths = s.doc.para_paths(StoryRef::Body);
+    let tick = |s: &mut Session, i: usize| {
+        let r = item_box(&s.doc, StoryRef::Body, &paths[i]).expect("an item");
+        run(s, "developer.toggleCheckBox", json!({"at": serde_json::to_value(r.content_start()).unwrap()}));
+    };
+    for (i, &(_, ticked, nested, red, _)) in rows.iter().enumerate() {
+        let len = s.doc.para(StoryRef::Body, &paths[i]).unwrap().len();
+        let r = item_box(&s.doc, StoryRef::Body, &paths[i]).expect("an item");
+        if red {
+            let a = wordcraft_doc::Pos::new(StoryRef::Body, paths[i].clone(), r.end.off + wordcraft_doc::para::OBJ.len_utf8() + 1);
+            s.doc.format_range(&a, &wordcraft_doc::Pos { off: len, ..a.clone() }, &|c| c.color = Some(TextColor::Rgb(RED))).unwrap();
+        }
+        if nested {
+            s.sel = crate::Selection::caret(wordcraft_doc::Pos::new(StoryRef::Body, paths[i].clone(), len));
+            run(&mut s, "para.indent", json!({}));
+            assert!(item_box(&s.doc, StoryRef::Body, &paths[i]).is_some(), "still an item when nested");
+        }
+        if ticked {
+            tick(&mut s, i);
+        }
+    }
+    for (i, &(word, ticked, _, _, want)) in rows.iter().enumerate() {
+        let inks = ink_of(&mut s, word);
+        assert!(!inks.is_empty(), "{word}: not drawn");
+        assert!(inks.iter().all(|&c| c == want), "{word}: drawn {inks:?}, want {want:?}");
+        assert_eq!(s.doc.checklist_ticked(StoryRef::Body, &paths[i]), ticked, "{word}");
+        assert_eq!(struck(&s, i), ticked, "{word}");
+    }
+    // Unticking: the item's own colour again, no strike.
+    for (i, &(word, ticked, _, red, _)) in rows.iter().enumerate() {
+        if ticked {
+            tick(&mut s, i);
+            assert!(!struck(&s, i), "{word}");
+            let want = if red { RED } else { Rgb::BLACK };
+            assert!(ink_of(&mut s, word).iter().all(|&c| c == want), "{word} after unticking");
+        }
+    }
 }
