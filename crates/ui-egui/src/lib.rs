@@ -14,6 +14,10 @@ pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
     ..craft_update::suite::WORDCRAFT
 };
 
+/// The update library, for a host that names its own app in [`WordApp::set_update_app`].
+#[cfg(not(target_arch = "wasm32"))]
+pub use craft_update;
+
 /// An English UI string in the current interface language ([`i18n::t`]).
 #[macro_export]
 macro_rules! tl {

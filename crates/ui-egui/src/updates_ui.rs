@@ -17,6 +17,17 @@ pub(crate) struct Runtime {
     startup_check: bool,
     #[cfg(not(target_arch = "wasm32"))]
     check_requested: bool,
+    /// Whose releases the check asks for, and the version it compares them with: WordCraft's
+    /// unless the host gave its own ([`WordApp::set_update_app`]).
+    #[cfg(not(target_arch = "wasm32"))]
+    app: &'static craft_update::app::App,
+    #[cfg(not(target_arch = "wasm32"))]
+    version: &'static str,
+    /// Checks started in this process (the check at start counts once), for a host's tests.
+    #[cfg(not(target_arch = "wasm32"))]
+    checks_started: u32,
+    #[cfg(not(target_arch = "wasm32"))]
+    started_at_start: bool,
     /// The context of the last frame, to wake the UI when a check is queued from a menu callback.
     #[cfg(not(target_arch = "wasm32"))]
     repaint: Option<egui::Context>,
@@ -36,6 +47,14 @@ impl Default for Runtime {
             startup_check: false,
             #[cfg(not(target_arch = "wasm32"))]
             check_requested: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            app: &crate::UPDATE_APP,
+            #[cfg(not(target_arch = "wasm32"))]
+            version: env!("CARGO_PKG_VERSION"),
+            #[cfg(not(target_arch = "wasm32"))]
+            checks_started: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            started_at_start: false,
             #[cfg(not(target_arch = "wasm32"))]
             repaint: None,
             manual_window_open: false,
@@ -59,6 +78,25 @@ impl WordApp {
         self.updates_rt.startup_check = on;
     }
 
+    /// A host app that embeds WordCraft under its own name: checks (at start when turned on, and
+    /// Help ▸ Check for Updates) ask for `app`'s releases from its own repository and compare
+    /// them with `version`, never WordCraft's. Call it before the first frame.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn set_update_app(&mut self, app: &'static craft_update::app::App, version: &'static str) {
+        let rt = &mut self.updates_rt;
+        rt.app = app;
+        rt.version = version;
+        rt.updater = Updater::new(app, version).with_translator(translate);
+        rt.result_dialog = CheckResultDialog::new(app, version).with_translator(translate);
+    }
+
+    /// How many update checks this process has started (the check at start counts once): a host's
+    /// tests check that none starts unless asked for.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn update_checks_started(&self) -> u32 {
+        self.updates_rt.checks_started
+    }
+
     /// Turns the self-update off for the rest of this process: no update is offered, and Help ▸
     /// Check for Updates says why. For a process that still carries another program's AppImage
     /// variables, which the update would take for this copy's file and replace (#5653).
@@ -66,7 +104,7 @@ impl WordApp {
     pub fn disable_self_update(&mut self) {
         let rt = &mut self.updates_rt;
         rt.startup_check = false;
-        rt.updater = Updater::new(&crate::UPDATE_APP, env!("CARGO_PKG_VERSION")).with_translator(translate).with_source(refused_check());
+        rt.updater = Updater::new(rt.app, rt.version).with_translator(translate).with_source(refused_check());
     }
 
     /// Starts the helper of an update that is ready, so that it installs once the process has
@@ -109,8 +147,12 @@ pub(crate) fn tick(app: &mut WordApp, ctx: &egui::Context) {
         let rt = &mut app.updates_rt;
         rt.repaint = Some(ctx.clone());
         if std::mem::take(&mut rt.check_requested) {
+            rt.checks_started += 1;
             rt.updater.check_now(ctx);
         } else if rt.startup_check {
+            if !std::mem::replace(&mut rt.started_at_start, true) {
+                rt.checks_started += 1;
+            }
             rt.updater.check_at_start(ctx);
         }
         rt.updater.tick(ctx);
@@ -146,7 +188,10 @@ pub(crate) fn show(app: &mut WordApp, ctx: &egui::Context) {
                     rt.manual_window_open = false;
                     rt.updater.dismiss_status();
                 }
-                CheckResultResponse::CheckAgain => rt.updater.check_now(ctx),
+                CheckResultResponse::CheckAgain => {
+                    rt.checks_started += 1;
+                    rt.updater.check_now(ctx);
+                }
                 // The window closes, and the next frame's `show_if` asks the app to quit once the
                 // shown document has no unsaved work.
                 CheckResultResponse::RestartToUpdate => {
@@ -207,6 +252,22 @@ mod tests {
         let status = app.updates_rt.updater.status();
         assert!(matches!(status, Status::Failed(why) if why.contains("another program's AppImage")), "{status:?}");
         assert!(!app.updates_rt.updater.prompt_open(), "no update offered");
+    }
+
+    /// A host's own identity replaces WordCraft's, and frames alone never start a check: only the
+    /// check at start (when turned on) or Help ▸ Check for Updates does.
+    #[test]
+    fn a_host_update_app_is_used_and_no_check_starts_unasked() {
+        static HOST: craft_update::app::App = craft_update::app::App::new("hostapp", "Host App", "A host", "example/host");
+        let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), crate::Services::default());
+        app.set_update_app(&HOST, "1.2.3");
+        assert_eq!(app.updates_rt.app.repo, "example/host");
+        assert_eq!(app.updates_rt.version, "1.2.3");
+        let ctx = egui::Context::default();
+        for _ in 0..3 {
+            super::tick(&mut app, &ctx);
+        }
+        assert_eq!(app.update_checks_started(), 0, "no check without being asked");
     }
 
     /// Help ▸ Check for Updates runs while the ribbon draws, after the frame's `tick`: the result
