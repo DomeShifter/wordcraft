@@ -475,6 +475,7 @@ impl Session {
         view.outline.collapsed.clear();
         // Viewing is for the document it was chosen for.
         view.viewing = false;
+        view.commenting = false;
         view.follow_prefs(&self.prefs);
         let mut d = DocState::new(doc, untitled, view);
         let id = d.document_id;

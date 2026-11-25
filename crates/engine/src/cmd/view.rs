@@ -76,6 +76,10 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("view.viewing", "Viewing", "View › Mode", |s, v| toggle(s, v, |x| &mut x.viewing))
             .params(r#"{"value"?: bool}"#)
             .pure(),
+        // Commenting (StarDocs 0010): only comments may change, for this session only.
+        CommandSpec::new("view.commenting", "Commenting", "View › Mode", |s, v| toggle(s, v, |x| &mut x.commenting))
+            .params(r#"{"value"?: bool}"#)
+            .pure(),
         CommandSpec::new("view.ruler", "Ruler", "View › Show", |s, v| toggle(s, v, |x| &mut x.ruler)).pure(),
         // The drawing grid over the page (screen only; never printed or exported).
         CommandSpec::new("view.gridlines", "Gridlines", "View › Show", |s, v| toggle(s, v, |x| &mut x.gridlines))

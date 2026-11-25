@@ -1,4 +1,4 @@
-//! StarDocs fork changes: Viewing (0005) and checklists (0006).
+//! StarDocs fork changes: Viewing (0005), checklists (0006) and Commenting (0010).
 
 use serde_json::json;
 use wordcraft_doc::StoryRef;
@@ -53,6 +53,33 @@ fn a_new_document_is_not_opened_for_viewing() {
     run(&mut s, "view.viewing", json!({"value": true}));
     run(&mut s, "file.new", json!({}));
     assert!(!s.view.viewing);
+    run(&mut s, "text.insert", json!({"text": "ok"}));
+}
+
+#[test]
+fn commenting_allows_comments_and_nothing_else() {
+    let mut s = s();
+    run(&mut s, "text.insert", json!({"text": "Hello world"}));
+    assert_eq!(run(&mut s, "view.commenting", json!({"value": true}))["value"], true);
+    assert_eq!(run(&mut s, "view.state", json!({}))["commenting"], true);
+    let err = s.run("text.insert", &json!({"text": "x"})).unwrap_err().to_string();
+    assert!(err.contains("only comment"), "{err}");
+    assert!(s.run("format.bold", &json!({})).is_err());
+    assert!(s.run("edit.undo", &json!({})).is_err(), "no undo while commenting");
+    assert!(s.why_disabled("text.insert").is_some());
+    assert!(s.why_disabled("review.newComment").is_none());
+    // Suggesting is a change too.
+    assert!(s.run("review.trackChanges", &json!({"value": true})).is_err());
+    run(&mut s, "select.all", json!({}));
+    run(&mut s, "review.newComment", json!({"text": "Looks good"}));
+    assert_eq!(s.doc.comments.len(), 1);
+    assert_eq!(body_text(&s), ["Hello world"], "the text is untouched");
+    assert!(s.why_disabled("file.save").is_none());
+    assert!(s.doc.settings.protection.is_none(), "nothing written into the document");
+    let back: crate::ViewState = serde_json::from_value(run(&mut s, "view.state", json!({}))).unwrap();
+    assert!(!back.commenting, "never read back");
+    run(&mut s, "file.new", json!({}));
+    assert!(!s.view.commenting, "for the document it was chosen for");
     run(&mut s, "text.insert", json!({"text": "ok"}));
 }
 

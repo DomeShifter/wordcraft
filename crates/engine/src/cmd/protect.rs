@@ -249,16 +249,22 @@ fn always_allowed(id: &str, params: &Value) -> bool {
 
 /// Why command `id` (one that changes the document) is refused while the session is only viewing
 /// the document (`view.viewing`, StarDocs 0005): everything but the File commands that leave the
-/// document as it is (Save, Open, New, Print, Export…).
+/// document as it is (Save, Open, New, Print, Export…). While only commenting (`view.commenting`,
+/// StarDocs 0010) the comment commands run too, as in Restrict Editing's comments mode; undo and
+/// redo don't (they could take back more than a comment).
 pub(crate) fn viewing_refuses(s: &Session, id: &str, params: &Value) -> Option<&'static str> {
-    if !s.view.viewing || (id.starts_with("file.") && always_allowed(id, params)) {
+    if !(s.view.viewing || s.view.commenting) || (id.starts_with("file.") && always_allowed(id, params)) {
         return None;
     }
     // Undo and Redo change the document too, though they aren't marked as changing it.
     if !s.registry.get(id).is_some_and(|spec| spec.mutates) && !matches!(id, "edit.undo" | "edit.undoTo" | "edit.redo" | "edit.repeat") {
         return None;
     }
-    Some("the document is open for viewing")
+    if s.view.viewing {
+        return Some("the document is open for viewing");
+    }
+    let comment_ok = id.starts_with("review.") && (id.contains("Comment") || id == "review.reply");
+    (!comment_ok).then_some("you can only comment on this document")
 }
 
 /// The user name (`file.setAuthor`) is the identity a named exception range is checked against,

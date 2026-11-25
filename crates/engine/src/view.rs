@@ -100,6 +100,12 @@ pub struct ViewState {
     /// it is written into the document. Shown by `view.state`, never read back.
     #[serde(default, skip_deserializing)]
     pub viewing: bool,
+    /// Commenting (StarDocs 0010): the document is open to be read and commented on, not
+    /// changed, for this session only (someone a document is shared with as a commenter). Every
+    /// command that changes the document is refused except the comment commands (see
+    /// [`crate::cmd::protect::viewing_refuses`]); nothing of it is written into the document.
+    #[serde(default, skip_deserializing)]
+    pub commenting: bool,
     /// Outline view: collapsed headings, Show Level, first lines, text formatting.
     #[serde(default)]
     pub outline: crate::cmd::outline::OutlineState,
@@ -220,6 +226,7 @@ impl Default for ViewState {
             field_codes: false,
             hide_white_space: false,
             viewing: false,
+            commenting: false,
             outline: Default::default(),
             design_mode: false,
             full_screen: false,
