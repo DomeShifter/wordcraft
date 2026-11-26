@@ -1154,6 +1154,35 @@ fn hyperlink_shortcut_focuses_address_and_preserves_document() {
     }
 }
 
+/// StarDocs: on the web the shell sends Mod+V's key press AND the paste event in one frame; one
+/// Ctrl+V pasted twice (two undo steps). Likewise Mod+C / Mod+X with their copy and cut events.
+#[test]
+fn web_clipboard_key_and_event_paste_once() {
+    let ctx = egui::Context::default();
+    let mut a = app();
+    let frame = |a: &mut WordApp, events: Vec<egui::Event>| {
+        ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
+            a.logic(ui.ctx());
+            a.ui(ui);
+        })
+        .drop_without_applying_deltas();
+    };
+    for _ in 0..3 {
+        frame(&mut a, Vec::new());
+    }
+    let key = |key, pressed| egui::Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: egui::Modifiers::COMMAND };
+    // An earlier in-app copy left text on the internal clipboard: the key's own Paste would use it.
+    a.session.clipboard_text = "Hello world".into();
+    frame(&mut a, vec![key(egui::Key::V, true), egui::Event::Paste("Hello world".into())]);
+    frame(&mut a, vec![key(egui::Key::V, false)]);
+    assert_eq!(body_text(&a), "Hello world", "one Ctrl+V pastes once");
+    a.run("edit.undo", json!({})).unwrap();
+    assert_eq!(body_text(&a), "", "one undo step removes the paste");
+    // The order the shell sends them in doesn't matter.
+    frame(&mut a, vec![egui::Event::Paste("abc".into()), key(egui::Key::V, true)]);
+    assert_eq!(body_text(&a), "abc", "paste event first, then the key");
+}
+
 /// Issue #139: Ctrl+wheel over the page didn't zoom.
 #[test]
 fn ctrl_wheel_over_canvas_zooms() {

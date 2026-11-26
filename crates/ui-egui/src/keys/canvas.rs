@@ -50,7 +50,7 @@ pub fn canvas_events(app: &mut WordApp, ctx: &egui::Context) {
     if held.command {
         app.canvas.paste_mods = Some(held);
     }
-    for e in events {
+    for e in events.iter().cloned() {
         // A key closed the window (Mod+W) or brought another forward: the frame's other keys
         // were typed in this one and are dropped.
         if app.windows.shown() != window {
@@ -67,7 +67,32 @@ pub fn canvas_events(app: &mut WordApp, ctx: &egui::Context) {
         {
             continue;
         }
+        if shell_made_clipboard_event(&e, &events) {
+            continue;
+        }
         handle_event(app, ctx, e);
+    }
+}
+
+/// Whether `e` is a clipboard shortcut's key press that the shell already turned into a
+/// Copy, Cut or Paste event in this same batch. The web shell (eframe) sends both the key and
+/// the clipboard event; running the key's command too pasted twice (StarDocs: one Ctrl+V
+/// inserted the text twice, two undo steps). egui-winit sends no such key press.
+pub(super) fn shell_made_clipboard_event(e: &egui::Event, events: &[egui::Event]) -> bool {
+    let egui::Event::Key { key, pressed: true, modifiers: m, .. } = e else { return false };
+    let has = |f: fn(&egui::Event) -> bool| events.iter().any(f);
+    let plain_mod = m.command && !m.alt && !m.shift;
+    match key {
+        Key::V if plain_mod => has(|e| matches!(e, egui::Event::Paste(_))),
+        Key::Insert if m.shift && !m.command && !m.alt => has(|e| matches!(e, egui::Event::Paste(_))),
+        Key::C if plain_mod => has(|e| matches!(e, egui::Event::Copy)),
+        Key::Insert if m.command && !m.shift && !m.alt => has(|e| matches!(e, egui::Event::Copy)),
+        Key::X if plain_mod => has(|e| matches!(e, egui::Event::Cut)),
+        Key::Delete if m.shift && !m.command && !m.alt => has(|e| matches!(e, egui::Event::Cut)),
+        Key::Paste => has(|e| matches!(e, egui::Event::Paste(_))),
+        Key::Copy => has(|e| matches!(e, egui::Event::Copy)),
+        Key::Cut => has(|e| matches!(e, egui::Event::Cut)),
+        _ => false,
     }
 }
 
