@@ -2,13 +2,13 @@ use super::enter_tab::tab_indent_on;
 use super::{Block, CmdResult, NumRef, OBJ, Pos, Selection, Session, StoryRef, Value, delete_selection, delete_selection_effect, sel_result};
 
 /// Whether the character at `off` is text already marked deleted (a suggested deletion).
-fn deleted_at(para: &wordcraft_doc::Para, off: usize) -> bool {
+fn deleted_at(para: &wordcraft_doc::Paragraph, off: usize) -> bool {
     para.run_ranges().any(|(r, c)| r.start <= off && off < r.end && c.del.is_some())
 }
 
 /// Under Track Changes the caret steps over text already marked deleted (Word, Google Docs), so
 /// a second Delete marks the next character instead of the same one again.
-fn skip_deleted_fwd(para: &wordcraft_doc::Para, mut off: usize) -> usize {
+fn skip_deleted_fwd(para: &wordcraft_doc::Paragraph, mut off: usize) -> usize {
     while off < para.len() && deleted_at(para, off) {
         let n = para.next_boundary(off);
         if n <= off {
@@ -20,7 +20,7 @@ fn skip_deleted_fwd(para: &wordcraft_doc::Para, mut off: usize) -> usize {
 }
 
 /// Backwards twin of [`skip_deleted_fwd`] for Backspace.
-fn skip_deleted_back(para: &wordcraft_doc::Para, mut off: usize) -> usize {
+fn skip_deleted_back(para: &wordcraft_doc::Paragraph, mut off: usize) -> usize {
     while off > 0 {
         let a = para.backspace_from(off);
         if a >= off || !deleted_at(para, a) {
