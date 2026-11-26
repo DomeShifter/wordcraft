@@ -815,10 +815,17 @@ pub struct WordApp {
     /// A host's look for the dialogs and the Comments pane ([`WordApp::set_host_look`],
     /// StarDocs 0008).
     pub(crate) host_look: HostLook,
+    /// A host's own menu Paste ([`WordApp::set_menu_paste`], StarDocs 0018).
+    pub(crate) host_menu_paste: Option<MenuPaste>,
 }
 
 /// Draws a host's items for a selected picture into the page's right-click menu.
 pub type PictureMenu = fn(&mut WordApp, &mut egui::Ui);
+
+/// A host's menu Paste: called for `edit.paste` without text (the ribbon, menus and right-click
+/// Paste; Ctrl+V always brings its text). `Some` when the host handled it (pasted, or asked for
+/// Ctrl+V), `None` lets WordCraft paste as usual.
+pub type MenuPaste = fn(&mut WordApp) -> Option<Result<serde_json::Value, String>>;
 
 /// The parts of WordCraft's window a host can switch off when it draws its own menus, toolbar
 /// and status line around the page. Every command stays reachable through the session, so a

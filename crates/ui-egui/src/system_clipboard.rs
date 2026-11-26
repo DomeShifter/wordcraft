@@ -158,6 +158,23 @@ mod tests {
         a.session.doc.para_at(&focus).and_then(|p| p.props_of_char(off).bold).unwrap_or(false)
     }
 
+    /// A host's menu Paste (StarDocs 0018) takes text-less Paste only: Ctrl+V's text pastes as
+    /// usual, once, and Keep Text Only is left alone.
+    #[test]
+    fn host_menu_paste_takes_textless_paste_only() {
+        fn host(a: &mut WordApp) -> Option<Result<serde_json::Value, String>> {
+            Some(a.run("edit.paste", json!({"text": "host"})))
+        }
+        let mut a = app(Services::default());
+        a.set_menu_paste(Some(host));
+        a.run("edit.paste", json!({"text": "key"})).unwrap();
+        assert_eq!(first_para(&a), "key");
+        a.run("edit.paste", json!({})).unwrap();
+        assert_eq!(first_para(&a), "keyhost");
+        a.set_menu_paste(None);
+        assert_eq!(a.run("edit.paste", json!({})).unwrap_err(), "the clipboard is empty");
+    }
+
     /// Ctrl+V (a paste event with the text) and the ribbon's Paste keep another program's
     /// formatting from the clipboard's HTML (#687); Keep Text Only doesn't.
     #[test]
