@@ -41,12 +41,43 @@ pub(super) fn comments(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook) {
         });
         return;
     }
+    // Show all / only open / only resolved threads (kept per document while it is open).
+    let filter_key = egui::Id::unique(("host_comment_filter", app.session.document_id()));
+    let mut filter: u8 = ui.data(|d| d.get_temp(filter_key)).unwrap_or(0);
+    ui.horizontal(|ui| {
+        for (n, label) in [(0u8, tl!("All")), (1, tl!("Open")), (2, tl!("Resolved"))] {
+            if ui.selectable_label(filter == n, RichText::new(label).font(look.meta_font.clone())).clicked() {
+                filter = n;
+            }
+        }
+    });
+    ui.data_mut(|d| d.insert_temp(filter_key, filter));
+    ui.add_space(6.0);
+    let active = crate::canvas::shown_comment(app);
+    let resolved_of = |c: &Value| c.get("resolved").and_then(Value::as_bool).unwrap_or(false);
     with_buttons(&ui.ctx().clone(), Some(&look.buttons), || {
         egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-            for c in list.iter().filter(|c| is_root(c)) {
+            for c in list.iter().filter(|c| is_root(c) && (filter == 0 || (filter == 2) == resolved_of(c))) {
                 let id = c.get("id").and_then(Value::as_u64).unwrap_or(0);
                 let replies: Vec<&Value> = list.iter().filter(|r| r.get("parent").and_then(Value::as_u64) == Some(id)).collect();
-                card(app, ui, look, look.card, c, &replies);
+                // A click on the card (not on its buttons or fields, which are drawn above this) moves
+                // the caret into its anchored text: the page scrolls there and the text is highlighted.
+                let h_key = egui::Id::unique(("host_pane_card_h", app.session.document_id(), id));
+                let last: f32 = ui.data(|d| d.get_temp(h_key)).unwrap_or(60.0);
+                let area = egui::Rect::from_min_size(ui.cursor().min, vec2(ui.available_width(), last));
+                let hit = ui.interact(area, h_key.with("click"), egui::Sense::click());
+                let frame = match (&look.margin, active == u32::try_from(id).ok()) {
+                    (Some(m), true) => m.active_card,
+                    _ => look.card,
+                };
+                let top = ui.cursor().min.y;
+                card(app, ui, look, frame, c, &replies);
+                ui.data_mut(|d| d.insert_temp(h_key, (ui.cursor().min.y - top).max(20.0)));
+                if hit.clicked()
+                    && let Some(a) = c.get("anchor").filter(|a| !a.is_null())
+                {
+                    let _ = app.run("caret.set", json!({"pos": a}));
+                }
                 ui.add_space(look.card_gap);
             }
         });
