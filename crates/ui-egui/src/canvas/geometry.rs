@@ -232,7 +232,10 @@ pub fn geometry(app: &WordApp, l: &DocLayout, avail: egui::Vec2) -> Geometry {
     } else {
         (1, true)
     };
-    let cols = columns_for(avail.x, maxw * scale + host_px, l.pages.len(), min_cols, auto);
+    // Each page keeps its own comment-card column (host_px), so Auto counts it; never more pages
+    // across than the host allows (View.max_page_cols, 0 = as many as fit).
+    let cap = if v.max_page_cols == 0 { usize::MAX } else { v.max_page_cols };
+    let cols = columns_for(avail.x, maxw * scale + host_px, l.pages.len(), min_cols, auto).min(cap).max(1);
     let sizes: Vec<(f32, f32)> = l.pages.iter().map(|p| (p.w, p.h)).collect();
     if v.mode == wordcraft_layout::ViewMode::Web {
         // The sheet runs from side to side of the work area, no centred page with grey margins.
