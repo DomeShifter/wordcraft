@@ -402,6 +402,9 @@ fn check_formatting(s: &Session, id: &str, params: &Value) -> Result<(), CmdErro
         "para.heading1" => Some("Heading1"),
         "para.heading2" => Some("Heading2"),
         "para.heading3" => Some("Heading3"),
+        "para.heading4" => Some("Heading4"),
+        "para.heading5" => Some("Heading5"),
+        "para.heading6" => Some("Heading6"),
         _ => None,
     };
     if let Some(name) = style {

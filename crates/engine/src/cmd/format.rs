@@ -101,8 +101,8 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("format.size", "Font Size", "Home › Font", size).key("Mod+Shift+P").params(r#"{"size": number}"#),
         CommandSpec::new("format.growFont", "Increase Font Size", "Home › Font", |s, _| step_size(s, 1)).key("Mod+Shift+. / Mod+Shift+>"),
         CommandSpec::new("format.shrinkFont", "Decrease Font Size", "Home › Font", |s, _| step_size(s, -1)).key("Mod+Shift+, / Mod+Shift+<"),
-        CommandSpec::new("format.growFont1", "Grow Font 1 Point", "Home › Font", |s, _| nudge_size(s, 1.0)).key("Mod+]"),
-        CommandSpec::new("format.shrinkFont1", "Shrink Font 1 Point", "Home › Font", |s, _| nudge_size(s, -1.0)).key("Mod+["),
+        CommandSpec::new("format.growFont1", "Grow Font 1 Point", "Home › Font", |s, _| nudge_size(s, 1.0)),
+        CommandSpec::new("format.shrinkFont1", "Shrink Font 1 Point", "Home › Font", |s, _| nudge_size(s, -1.0)),
         CommandSpec::new("format.color", "Font Color", "Home › Font", color).params(r#"{"color": "RRGGBB" | "auto"}"#),
         CommandSpec::new("format.underlineColor", "Underline Color", "Home › Font › Underline", underline_color)
             .params(r#"{"color": "RRGGBB" | "auto"} (the underline's own colour; "auto" follows the text colour)"#),
@@ -120,7 +120,7 @@ pub fn specs() -> Vec<CommandSpec> {
         CommandSpec::new("format.changeCase", "Change Case", "Home › Font", change_case)
             .key("Shift+F3")
             .params(r#"{"mode"?: "sentence|lower|upper|title|toggle"}"#),
-        CommandSpec::new("format.clear", "Clear All Formatting", "Home › Font", clear),
+        CommandSpec::new("format.clear", "Clear All Formatting", "Home › Font", clear).key("Mod+\\"),
         // Word's Ctrl+Space; ⌘Space is Spotlight, so Word for Mac uses ⌃Space.
         CommandSpec::new("format.resetChar", "Reset Character Formatting", "Home › Font", reset_char).key(super::mac_or("Ctrl+Space", "Mod+Space")),
         CommandSpec::new("format.spacing", "Character Spacing", "Home › Font › Font › Advanced", |s, v| {

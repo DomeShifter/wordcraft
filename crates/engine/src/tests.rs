@@ -163,6 +163,33 @@ fn id(k: &str) -> Option<&'static str> {
 }
 
 #[test]
+fn docs_style_shortcuts_resolve() {
+    // StarDocs: the keys Google Docs users expect, next to Word's own (StarDocs 0017).
+    for (k, want) in [
+        ("Mod+B", "format.bold"),
+        ("Mod+I", "format.italic"),
+        ("Mod+U", "format.underline"),
+        ("Mod+Shift+X", "format.strikethrough"),
+        ("Mod+\\", "format.clear"),
+        ("Mod+K", "insert.link"),
+        ("Mod+Shift+7", "para.numbering"),
+        ("Mod+Shift+8", "para.bullets"),
+        ("Mod+Shift+9", "list.checklist"),
+        ("Mod+Alt+0", "para.normal"),
+        ("Mod+Alt+4", "para.heading4"),
+        ("Mod+Alt+6", "para.heading6"),
+        ("Mod+]", "para.indent"),
+        ("Mod+[", "para.outdent"),
+        ("Mod+E", "para.alignCenter"),
+        ("Mod+Y", "edit.redo"),
+        ("Mod+Shift+Z", "edit.redo"),
+        ("Mod+8", "view.marks"),
+    ] {
+        assert_eq!(id(k), Some(want), "{k}");
+    }
+}
+
+#[test]
 fn word_default_shortcuts_resolve() {
     // #330: Word's documented default shortcuts reach the matching commands, with Word for
     // Mac's keys where macOS takes Word's (⌘Q quits, ⌘Space is Spotlight, ⌘⇧G is Find Previous).
