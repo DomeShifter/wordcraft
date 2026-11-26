@@ -20,6 +20,7 @@ pub const TAG: &str = wordcraft_doc::control::CHECKLIST_TAG;
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         CommandSpec::new("list.checklist", "Checklist", "Home › Paragraph", checklist)
+            .key("Mod+Shift+9")
             .params(r#"{"off"?: bool (take the boxes away; left out, the command turns the selected paragraphs into a checklist, or back when they all are one)}"#),
     ]
 }

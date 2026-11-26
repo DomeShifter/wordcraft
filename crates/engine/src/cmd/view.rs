@@ -23,7 +23,7 @@ pub fn specs() -> Vec<CommandSpec> {
             s.relayout();
             r
         })
-        .key("Mod+Shift+8 / Mod+8")
+        .key("Mod+8")
         .pure(),
         CommandSpec::new("view.printLayout", "Print Layout", "View › Views", |s, _| mode(s, ViewMode::Print, false)).key("Mod+Alt+P").pure(),
         CommandSpec::new("view.webLayout", "Web Layout", "View › Views", |s, _| mode(s, ViewMode::Web, false)).pure(),

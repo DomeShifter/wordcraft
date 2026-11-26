@@ -25,6 +25,7 @@ pub fn key_name(k: Key) -> Option<&'static str> {
         Key::Comma => ",",
         Key::OpenBracket => "[",
         Key::CloseBracket => "]",
+        Key::Backslash => "\\",
         Key::Num0 => "0",
         Key::Num1 => "1",
         Key::Num2 => "2",

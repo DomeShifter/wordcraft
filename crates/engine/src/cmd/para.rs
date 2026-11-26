@@ -59,8 +59,8 @@ pub fn specs() -> Vec<CommandSpec> {
             .params(r#"{"value"?: bool (false = left to right)}"#),
         CommandSpec::new("para.ltr", "Left-to-Right Text Direction", "Home › Paragraph", |s, v| direction(s, v, false))
             .params(r#"{"value"?: bool (false = right to left)}"#),
-        CommandSpec::new("para.indent", "Increase Indent", "Home › Paragraph", indent).key("Mod+M"),
-        CommandSpec::new("para.outdent", "Decrease Indent", "Home › Paragraph", outdent).key("Mod+Shift+M"),
+        CommandSpec::new("para.indent", "Increase Indent", "Home › Paragraph", indent).key("Mod+] / Mod+M"),
+        CommandSpec::new("para.outdent", "Decrease Indent", "Home › Paragraph", outdent).key("Mod+[ / Mod+Shift+M"),
         CommandSpec::new("para.hangingIndent", "Hanging Indent", "Home › Paragraph › Paragraph", |s, _| {
             fmt(s, &|p| {
                 let l = p.indent_left.unwrap_or(0.0) + 36.0;
@@ -160,12 +160,16 @@ pub fn specs() -> Vec<CommandSpec> {
         })
         .key(super::mac_or("Ctrl+Q", "Mod+Q")),
         CommandSpec::new("para.style", "Apply Style", "Home › Styles", apply_style).params(r#"{"style": string (name or id)}"#),
-        CommandSpec::new("para.normal", "Normal Style", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Normal"}))).key("Mod+Shift+N"),
+        CommandSpec::new("para.normal", "Normal Style", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Normal"}))).key("Mod+Alt+0 / Mod+Shift+N"),
         CommandSpec::new("para.heading1", "Heading 1", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Heading1"}))).key("Mod+Alt+1"),
         CommandSpec::new("para.heading2", "Heading 2", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Heading2"}))).key("Mod+Alt+2"),
         CommandSpec::new("para.heading3", "Heading 3", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Heading3"}))).key("Mod+Alt+3"),
-        CommandSpec::new("para.bullets", "Bullets", "Home › Paragraph", |s, v| list(s, v, ListKind::Bullet)).params(r#"{"kind"?: "bullet" | single char, "off"?: bool, "apply"?: bool (set that style, never toggle off)}"#).key("Mod+Shift+L"),
+        CommandSpec::new("para.heading4", "Heading 4", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Heading4"}))).key("Mod+Alt+4"),
+        CommandSpec::new("para.heading5", "Heading 5", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Heading5"}))).key("Mod+Alt+5"),
+        CommandSpec::new("para.heading6", "Heading 6", "Home › Styles", |s, _| apply_style(s, &json!({"style": "Heading6"}))).key("Mod+Alt+6"),
+        CommandSpec::new("para.bullets", "Bullets", "Home › Paragraph", |s, v| list(s, v, ListKind::Bullet)).params(r#"{"kind"?: "bullet" | single char, "off"?: bool, "apply"?: bool (set that style, never toggle off)}"#).key("Mod+Shift+8 / Mod+Shift+L"),
         CommandSpec::new("para.numbering", "Numbering", "Home › Paragraph", |s, v| list(s, v, ListKind::Numbered))
+            .key("Mod+Shift+7")
             .params(r#"{"kind"?: "numbered|numberedParen|upperLetter|lowerLetter|lowerRoman|outline|lowerLetterDot|legal", "off"?: bool, "apply"?: bool (set that style, never toggle off)}"#),
         CommandSpec::new("para.multilevel", "Multilevel List", "Home › Paragraph", |s, v| list(s, v, ListKind::Legal)).params(r#"{"kind"?: "legal|outline"}"#),
         CommandSpec::new("para.listLevel", "Change List Level", "Home › Paragraph › Bullets", |s, v| {
