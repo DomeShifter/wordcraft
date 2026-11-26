@@ -98,7 +98,16 @@ pub(crate) fn host_margin_look(app: &WordApp) -> Option<&crate::host_look::Margi
 /// the Comments pane (which lists them already) closed.
 pub(crate) fn host_margin(app: &WordApp) -> Option<&crate::host_look::MarginLook> {
     let s = &app.session;
-    let shown = s.balloons_shown() && s.prefs.markup.comments && !s.doc.comments.is_empty() && !s.view.comments_pane;
+    // Not `balloons_shown()`: that is false for Multiple Pages (Word has no markup area there), but a
+    // host's comment column sits beside every page, side by side too (StarDocs 0017).
+    let v = &s.view;
+    let shown = v.show_markup
+        && !v.read_mode
+        && v.mode == wordcraft_layout::ViewMode::Print
+        && s.prefs.markup.balloons != wordcraft_layout::display::BalloonMode::Inline
+        && s.prefs.markup.comments
+        && !s.doc.comments.is_empty()
+        && !v.comments_pane;
     host_margin_look(app).filter(|_| shown)
 }
 
