@@ -43,6 +43,7 @@ pub(crate) use geometry::SEAM;
 #[cfg(test)]
 pub(crate) use geometry::WHITE_SPACE_PAD;
 pub use geometry::{Geometry, geometry, markup_width, sync_fit_zoom};
+pub(crate) use geometry::shown_comment;
 #[cfg(test)]
 use geometry::{collapse_white_space, columns_for, place_pages};
 use geometry::{floating_comments, on_page_gap, on_visible_page, white_space_hidden};
