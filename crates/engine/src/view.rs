@@ -50,6 +50,10 @@ pub struct ViewState {
     /// One Page or Page Width was chosen last: keep one page per row when a typed or wheel zoom replaces the fit mode.
     #[serde(default)]
     pub single_column: bool,
+    /// The most pages side by side in Print Layout when more fit, 0 for no limit (a host's
+    /// "Pages side by side: 1 / 2 / Auto" choice, StarDocs 0018).
+    #[serde(default)]
+    pub max_page_cols: usize,
     /// Zoom to fit: "pageWidth", "onePage", "multiplePages", or empty.
     pub fit: String,
     /// Web Layout's text width, which the UI keeps at the window's width (#1876); never saved.
@@ -208,6 +212,7 @@ impl Default for ViewState {
             format_shape_pane: false,
             multi_page: false,
             single_column: false,
+            max_page_cols: 0,
             fit: String::new(),
             web_width: default_web_width(),
             read_width: default_read_width(),

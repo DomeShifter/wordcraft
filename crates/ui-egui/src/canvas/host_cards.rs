@@ -87,7 +87,9 @@ pub(super) fn host_cards(app: &mut WordApp, ui: &mut Ui, rects: &[Rect], layout:
         }
         for (i, t) in threads.iter().enumerate() {
             let Some(pr) = rects.get(t.page) else { continue };
-            let at = pos2(pr.max.x + margin.gap, tops[i]);
+            // Right of the whole row the page sits in (pages may sit side by side).
+            let right = rects.iter().filter(|r| r.min.y < pr.max.y && r.max.y > pr.min.y).fold(pr.max.x, |x, r| x.max(r.max.x));
+            let at = pos2(right + margin.gap, tops[i]);
             let shown = Rect::from_min_size(at, vec2(margin.card_width, hs[i]));
             if !shown.intersects(view.expand(200.0)) {
                 continue;

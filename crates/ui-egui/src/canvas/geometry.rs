@@ -218,7 +218,11 @@ pub fn geometry(app: &WordApp, l: &DocLayout, avail: egui::Vec2) -> Geometry {
     } else {
         (1, true)
     };
-    let cols = columns_for(avail.x, maxw * scale, l.pages.len(), min_cols, auto);
+    // A host's comment cards keep their column right of the whole block of pages: count only
+    // the room left beside them, and never more pages across than the host allows.
+    let card_room = host_margin(app).map_or(0.0, |m| m.card_width + m.gap + 16.0);
+    let cap = if v.max_page_cols == 0 { usize::MAX } else { v.max_page_cols };
+    let cols = columns_for(avail.x - card_room, maxw * scale, l.pages.len(), min_cols, auto).min(cap).max(1);
     let sizes: Vec<(f32, f32)> = l.pages.iter().map(|p| (p.w, p.h)).collect();
     if v.mode == wordcraft_layout::ViewMode::Web {
         // The sheet runs from side to side of the work area, no centred page with grey margins.
@@ -235,8 +239,8 @@ pub fn geometry(app: &WordApp, l: &DocLayout, avail: egui::Vec2) -> Geometry {
         return Geometry { rects, size, scale, cols: 1, bands };
     }
     let (mut rects, mut size) = place_pages(&sizes, markup, scale, cols, avail);
-    if let Some(m) = host_margin(app).filter(|_| cols == 1) {
-        make_room_for_cards(&mut rects, size.x, m.card_width + m.gap + 16.0);
+    if host_margin(app).is_some() {
+        make_room_for_cards(&mut rects, size.x, card_room);
     }
     let mut bands: Vec<(f32, f32)> = rects.iter().map(|r| (0.0, r.height())).collect();
     let editing_part = matches!(app.session.sel.focus.story, StoryRef::Part(_));
