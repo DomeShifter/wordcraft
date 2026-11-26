@@ -71,7 +71,9 @@ pub(super) fn host_cards(app: &mut WordApp, ui: &mut Ui, rects: &[Rect], layout:
     }
     threads.sort_by(|a, b| a.top.total_cmp(&b.top));
     let active = shown_comment(app).filter(|id| threads.iter().any(|t| t.id == *id));
-    let wide = rects.iter().all(|pr| view.max.x - pr.max.x >= margin.card_width + margin.gap + 8.0);
+    // Only the pages that have a thread count: with pages side by side the last page may be off
+    // to the right, and then the cards beside the first are still the right thing (StarDocs 0017).
+    let wide = threads.iter().filter_map(|t| rects.get(t.page)).all(|pr| view.max.x - pr.max.x >= margin.card_width + margin.gap + 8.0);
     let mut clicked: Option<usize> = None;
     if wide {
         let mut heights: HashMap<u32, f32> = ui.data(|d| d.get_temp(heights_key(app))).unwrap_or_default();
