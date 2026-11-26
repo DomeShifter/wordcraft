@@ -237,6 +237,8 @@ pub struct CanvasState {
     pub(crate) sync_out: f32,
     /// Pages per row last frame; when it changes the caret's page is scrolled back into view.
     pub cols: usize,
+    /// Where each page was drawn last frame, in screen points (a host's tests click on pages).
+    pub page_rects: Vec<Rect>,
     /// The comment whose balloon is selected (its text is editable in place, like Word's).
     pub balloon: Option<u32>,
     /// Give the selected balloon's text field keyboard focus on its next frame.
@@ -457,6 +459,7 @@ impl Default for CanvasState {
             sync_in: 0.0,
             sync_out: 0.0,
             cols: 1,
+            page_rects: Vec::new(),
             balloon: None,
             balloon_focus: false,
             balloon_reply: false,
@@ -1560,6 +1563,7 @@ pub fn show(app: &mut WordApp, ui: &mut Ui) {
         let ppp = ui.ctx().pixels_per_point();
         let max_tex = ui.ctx().input(|i| i.max_texture_side).min(wordcraft_render::MAX_SIDE as usize).max(1) as f32;
         let content_origin = ui.min_rect().min;
+        app.canvas.page_rects = geo.rects.iter().map(|r| r.translate(content_origin.to_vec2())).collect();
         let hidden = app.canvas.dragged_off_page();
         let page_view = view_key(app, dim_body, hidden.as_ref().map(|(_, p)| p), hinted);
         // The view without the hinting, which a stretched raster may differ in (see `stretched`).

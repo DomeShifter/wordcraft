@@ -3236,6 +3236,8 @@ fn pages_flow_into_rows_when_they_fit() {
     assert_eq!(columns_for(1200.0, letter, 10, 1, true), 1, "100%: one page per row");
     assert_eq!(columns_for(1200.0, letter * 0.6, 10, 1, true), 2, "60%: two per row");
     assert_eq!(columns_for(1200.0, letter * 0.25, 10, 1, true), 5, "25%: five per row");
+    // A host's cap (View.max_page_cols, StarDocs 0018) is applied after: 2 stays 2 where 5 fit.
+    assert_eq!(columns_for(1200.0, letter * 0.25, 10, 1, true).min(2), 2, "capped at two");
     assert_eq!(columns_for(1200.0, letter * 0.25, 3, 1, true), 3, "never more columns than pages");
     assert_eq!(columns_for(1200.0, letter * 0.25, 10, 1, false), 1, "fit modes that show one page");
     assert_eq!(columns_for(300.0, letter, 10, 2, true), 2, "Multiple Pages keeps two");
