@@ -1,6 +1,44 @@
 use super::enter_tab::tab_indent_on;
 use super::{Block, CmdResult, NumRef, OBJ, Pos, Selection, Session, StoryRef, Value, delete_selection, delete_selection_effect, sel_result};
 
+/// Whether the character at `off` is text already marked deleted (a suggested deletion).
+fn deleted_at(para: &wordcraft_doc::Para, off: usize) -> bool {
+    para.run_ranges().any(|(r, c)| r.start <= off && off < r.end && c.del.is_some())
+}
+
+/// Under Track Changes the caret steps over text already marked deleted (Word, Google Docs), so
+/// a second Delete marks the next character instead of the same one again.
+fn skip_deleted_fwd(para: &wordcraft_doc::Para, mut off: usize) -> usize {
+    while off < para.len() && deleted_at(para, off) {
+        let n = para.next_boundary(off);
+        if n <= off {
+            break;
+        }
+        off = n;
+    }
+    off
+}
+
+/// Backwards twin of [`skip_deleted_fwd`] for Backspace.
+fn skip_deleted_back(para: &wordcraft_doc::Para, mut off: usize) -> usize {
+    while off > 0 {
+        let a = para.backspace_from(off);
+        if a >= off || !deleted_at(para, a) {
+            break;
+        }
+        off = a;
+    }
+    off
+}
+
+/// After a tracked forward deletion of `a..b`: text that was only marked deleted stays in the
+/// paragraph, so the caret goes past it; text removed for real (own insertion) leaves it at `a`.
+fn caret_after_fwd(s: &mut Session, a: &Pos, b: &Pos, len_before: usize) {
+    if s.doc.settings.track_changes && s.doc.para_at(a).is_some_and(|p| p.len() == len_before) {
+        s.sel = Selection::caret(b.clone());
+    }
+}
+
 pub(super) fn backspace(s: &mut Session, v: &Value) -> CmdResult {
     let r = backspace_inner(s, v)?;
     crate::cmd::controls::restore_placeholder(s)?;
@@ -44,6 +82,14 @@ fn backspace_inner(s: &mut Session, _: &Value) -> CmdResult {
         return sel_result(s);
     }
     let mut f = s.sel.focus.clone();
+    let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
+    if s.doc.settings.track_changes {
+        let off = skip_deleted_back(para, f.off);
+        if off != f.off {
+            f.off = off;
+            s.sel = Selection::caret(f.clone());
+        }
+    }
     let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
     // Only floating objects before the caret: they are anchors, not characters, so this is the
     // paragraph start and the shape stays (Word).
@@ -155,12 +201,22 @@ fn delete_inner(s: &mut Session, _: &Value) -> CmdResult {
         });
         return sel_result(s);
     }
-    let f = s.sel.focus.clone();
+    let mut f = s.sel.focus.clone();
+    let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
+    if s.doc.settings.track_changes {
+        let off = skip_deleted_fwd(para, f.off);
+        if off != f.off {
+            f.off = off;
+            s.sel = Selection::caret(f.clone());
+        }
+    }
     let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
     if f.off < para.len() {
+        let len_before = para.len();
         let b = Pos { off: para.next_boundary(f.off), ..f.clone() };
-        s.sel = Selection { anchor: f, focus: b };
+        s.sel = Selection { anchor: f.clone(), focus: b.clone() };
         let effect = delete_selection_effect(s)?;
+        caret_after_fwd(s, &f, &b, len_before);
         s.set_ime_edit_outcome(crate::ImeEditOutcome {
             classified: true,
             content_changed: effect.content_changed,
@@ -210,9 +266,14 @@ pub(super) fn delete_word_back(s: &mut Session, v: &Value) -> CmdResult {
     if !s.sel.is_collapsed() {
         return backspace(s, v);
     }
-    let f = s.sel.focus.clone();
+    let mut f = s.sel.focus.clone();
+    let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
+    if s.doc.settings.track_changes {
+        f.off = skip_deleted_back(para, f.off);
+    }
     let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
     if f.off == 0 {
+        s.sel = Selection::caret(f);
         return backspace(s, v);
     }
     let a = Pos { off: para.word_start(f.off), ..f.clone() };
@@ -226,14 +287,21 @@ pub(super) fn delete_word_fwd(s: &mut Session, v: &Value) -> CmdResult {
     if !s.sel.is_collapsed() {
         return delete(s, v);
     }
-    let f = s.sel.focus.clone();
+    let mut f = s.sel.focus.clone();
+    let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
+    if s.doc.settings.track_changes {
+        f.off = skip_deleted_fwd(para, f.off);
+    }
     let Some(para) = s.doc.para_at(&f) else { return sel_result(s) };
     if f.off >= para.len() {
+        s.sel = Selection::caret(f);
         return delete(s, v);
     }
+    let len_before = para.len();
     let b = Pos { off: para.word_end(f.off), ..f.clone() };
-    s.sel = Selection { anchor: f, focus: b };
+    s.sel = Selection { anchor: f.clone(), focus: b.clone() };
     delete_selection(s)?;
+    caret_after_fwd(s, &f, &b, len_before);
     crate::cmd::controls::restore_placeholder(s)?;
     sel_result(s)
 }

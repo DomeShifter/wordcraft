@@ -231,3 +231,91 @@ fn ticked_checklist_items_draw_grey_and_unticking_restores() {
         }
     }
 }
+
+/// Suggesting mode (StarDocs 0015): the caret steps over text already marked deleted, so each
+/// Delete / Backspace / Ctrl+Delete / Ctrl+Backspace marks the next piece, not the same one again.
+fn suggesting(text: &str, off: usize) -> Session {
+    let mut s = s();
+    run(&mut s, "text.insert", json!({"text": text}));
+    s.doc.settings.track_changes = true;
+    caret_at(&mut s, off);
+    s
+}
+
+fn caret_at(s: &mut Session, off: usize) {
+    let mut p = s.sel.focus.clone();
+    p.off = off;
+    s.sel = crate::Selection::caret(p);
+}
+
+fn final_text(s: &Session) -> String {
+    let path = s.doc.para_paths(StoryRef::Body)[0].clone();
+    s.doc.para(StoryRef::Body, &path).unwrap().final_text()
+}
+
+#[test]
+fn repeated_delete_marks_each_next_character() {
+    let mut s = suggesting("Hello", 0);
+    for _ in 0..6 {
+        run(&mut s, "text.delete", json!({}));
+    }
+    assert_eq!(body_text(&s)[0], "Hello", "suggested deletions keep the text");
+    assert_eq!(final_text(&s), "");
+    assert_eq!(s.sel.focus.off, 5);
+}
+
+#[test]
+fn delete_steps_over_an_earlier_suggested_deletion() {
+    let mut s = suggesting("Hello", 0);
+    run(&mut s, "text.delete", json!({}));
+    caret_at(&mut s, 0);
+    run(&mut s, "text.delete", json!({}));
+    assert_eq!(final_text(&s), "llo");
+}
+
+#[test]
+fn repeated_backspace_marks_each_previous_character() {
+    let mut s = suggesting("Hello", 5);
+    for _ in 0..6 {
+        run(&mut s, "text.backspace", json!({}));
+    }
+    assert_eq!(body_text(&s)[0], "Hello");
+    assert_eq!(final_text(&s), "");
+    let mut s = suggesting("Hello", 5);
+    run(&mut s, "text.backspace", json!({}));
+    caret_at(&mut s, 5);
+    run(&mut s, "text.backspace", json!({}));
+    assert_eq!(final_text(&s), "Hel");
+}
+
+#[test]
+fn deleting_across_own_insertion_removes_it_for_real() {
+    let mut s = suggesting("Hello", 5);
+    run(&mut s, "text.insert", json!({"text": "XY"}));
+    for _ in 0..3 {
+        run(&mut s, "text.backspace", json!({}));
+    }
+    assert_eq!(body_text(&s)[0], "Hello", "own insertion gone, then 'o' marked deleted");
+    assert_eq!(final_text(&s), "Hell");
+    let mut s = suggesting("Hello", 5);
+    run(&mut s, "text.insert", json!({"text": "XY"}));
+    caret_at(&mut s, 5);
+    run(&mut s, "text.delete", json!({}));
+    run(&mut s, "text.delete", json!({}));
+    assert_eq!(body_text(&s)[0], "Hello");
+}
+
+#[test]
+fn repeated_ctrl_delete_and_ctrl_backspace_take_the_next_word() {
+    let mut s = suggesting("one two three", 0);
+    for _ in 0..2 {
+        run(&mut s, "text.deleteWordForward", json!({}));
+    }
+    assert_eq!(final_text(&s), "three");
+    assert_eq!(body_text(&s)[0], "one two three");
+    let mut s = suggesting("one two three", 13);
+    for _ in 0..2 {
+        run(&mut s, "text.deleteWordBack", json!({}));
+    }
+    assert_eq!(final_text(&s), "one ");
+}
