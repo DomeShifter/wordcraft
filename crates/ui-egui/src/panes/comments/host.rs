@@ -53,6 +53,7 @@ pub(super) fn comments(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook) {
     });
     ui.data_mut(|d| d.insert_temp(filter_key, filter));
     ui.add_space(6.0);
+    app.canvas.pane_card_rects.clear();
     let active = crate::canvas::shown_comment(app);
     let resolved_of = |c: &Value| c.get("resolved").and_then(Value::as_bool).unwrap_or(false);
     with_buttons(&ui.ctx().clone(), Some(&look.buttons), || {
@@ -73,6 +74,8 @@ pub(super) fn comments(app: &mut WordApp, ui: &mut Ui, look: &CommentsLook) {
                 let top = ui.cursor().min.y;
                 card(app, ui, look, frame, c, &replies);
                 ui.data_mut(|d| d.insert_temp(h_key, (ui.cursor().min.y - top).max(20.0)));
+                let drawn = egui::Rect::from_min_size(area.min, vec2(area.width(), (ui.cursor().min.y - top).max(20.0)));
+                app.canvas.pane_card_rects.push((u32::try_from(id).unwrap_or(0), drawn));
                 if hit.clicked()
                     && let Some(a) = c.get("anchor").filter(|a| !a.is_null())
                 {

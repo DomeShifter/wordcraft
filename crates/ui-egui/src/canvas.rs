@@ -248,6 +248,8 @@ pub struct CanvasState {
     balloon_h: f32,
     /// Screen rects of the comment balloons last frame (for the control channel and tests).
     pub balloon_rects: Vec<(u32, Rect)>,
+    /// Screen rects of the host Comments pane's cards last frame (for the control channel and tests).
+    pub pane_card_rects: Vec<(u32, Rect)>,
     /// A paste event arrived since the last Mod+V release (see `keys::canvas_events`).
     pub(crate) pasted: bool,
     /// A V (or Paste key) press reached the canvas since its last release. egui-winit keeps Mod+V
@@ -463,6 +465,7 @@ impl Default for CanvasState {
             balloon_reply: false,
             balloon_h: 0.0,
             balloon_rects: Vec::new(),
+            pane_card_rects: Vec::new(),
             table_tool: None,
             table_stroke: None,
             table_resize: None,
