@@ -153,6 +153,7 @@ impl WordApp {
             host_chrome: super::HostChrome::default(),
             host_picture_menu: None,
             host_look: super::HostLook::default(),
+            host_menu_paste: None,
             canvas,
             controls,
             dialog,
@@ -205,6 +206,14 @@ impl WordApp {
     /// WordCraft's back.
     pub fn set_picture_menu(&mut self, menu: Option<super::PictureMenu>) {
         self.host_picture_menu = menu;
+    }
+
+    /// A host with its own clipboard rules (a browser page can't read the clipboard on plain
+    /// http) handles menu Paste itself: `edit.paste` without text, from the ribbon, a menu or the
+    /// page's right-click menu, goes to `paste` first. Ctrl+V carries its text and never does.
+    /// `None` puts WordCraft's own back.
+    pub fn set_menu_paste(&mut self, paste: Option<super::MenuPaste>) {
+        self.host_menu_paste = paste;
     }
 
     /// A host that draws its own interface in another style gives WordCraft's dialogs and

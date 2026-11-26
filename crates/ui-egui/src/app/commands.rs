@@ -61,6 +61,14 @@ impl WordApp {
         // Ctrl+V's paste event carries it (#584), and its HTML and RTF, which egui's paste event
         // doesn't carry (#687).
         let mut params = params;
+        // A host's own menu Paste (StarDocs 0018): text-less Paste only, so Ctrl+V never reaches it.
+        if id == "edit.paste"
+            && params.get("text").is_none()
+            && let Some(paste) = self.host_menu_paste
+            && let Some(r) = paste(self)
+        {
+            return r;
+        }
         if let Some(r) = system_clipboard::fill(self, id, &mut params) {
             return r;
         }
