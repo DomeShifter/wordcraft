@@ -39,16 +39,17 @@ pub(super) fn new_comment(s: &mut Session, v: &Value) -> CmdResult {
     let props = Default::default();
     s.doc.insert_object(&b, InlineObject::CommentEnd { id }, &props)?;
     s.doc.insert_object(&a, InlineObject::CommentStart { id }, &props)?;
-    // The two marks are objects that take an offset each in their paragraph, so a selection
+    // The two marks are objects that are object characters (3 bytes of offset), so a selection
     // there moves with the text it covered (StarDocs 0016): left alone it lost its last
     // characters, and typing the comment replaced the rest.
     let shift = |p: &Pos| {
         let mut n = 0;
+        let mark = wordcraft_doc::para::OBJ.len_utf8();
         if p.story == a.story && p.path == a.path && p.off >= a.off {
-            n += 1;
+            n += mark;
         }
         if p.story == b.story && p.path == b.path && p.off > b.off {
-            n += 1;
+            n += mark;
         }
         Pos { off: p.off + n, ..p.clone() }
     };
